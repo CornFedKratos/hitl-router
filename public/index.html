@@ -59,6 +59,160 @@
       color: var(--muted);
     }
     .nav-brand span { color: var(--blue); }
+    .nav-links {
+      display: flex;
+      gap: 24px;
+      align-items: center;
+    }
+    .nav-links a {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+      text-decoration: none;
+      letter-spacing: 0.02em;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--text); }
+    .nav-hamburger {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 4px;
+      line-height: 1;
+    }
+    .nav-hamburger:hover { color: var(--text); }
+
+    /* ── Pre-Chat Options Panel ── */
+    .prechat-options {
+      max-width: 560px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+    .prechat-divider {
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    .prechat-card {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 20px;
+      margin-bottom: 8px;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .prechat-card:hover {
+      border-color: rgba(59, 159, 231, 0.3);
+      background: var(--surface2);
+      transform: translateY(-1px);
+    }
+    .prechat-icon {
+      font-size: 18px;
+      flex-shrink: 0;
+      width: 24px;
+      text-align: center;
+    }
+    .prechat-label {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+    }
+    .prechat-desc {
+      font-size: 12px;
+      color: var(--muted);
+      margin-left: auto;
+      white-space: nowrap;
+    }
+
+    /* ── Footer Links ── */
+    .footer-links {
+      margin-top: 6px;
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .footer-links a {
+      font-size: 13px;
+      color: #9CA3AF;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .footer-links a:hover { color: var(--text); }
+    .footer-sep {
+      color: #4B5563;
+      font-size: 13px;
+    }
+
+    /* ── Escape Hatch ── */
+    .escape-hatch {
+      display: none;
+      position: fixed;
+      bottom: 100px;
+      right: 24px;
+      z-index: 50;
+    }
+    .escape-hatch.visible { display: block; }
+    .escape-trigger {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 12px;
+      color: var(--muted);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .escape-trigger:hover { color: var(--text); border-color: rgba(59, 159, 231, 0.3); }
+    .escape-modal {
+      display: none;
+      position: fixed;
+      bottom: 140px;
+      right: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      width: 320px;
+      z-index: 51;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+      animation: fadeIn 0.2s ease;
+    }
+    .escape-modal.open { display: block; }
+    .escape-modal-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 14px;
+    }
+    .escape-modal a {
+      display: block;
+      padding: 8px 0;
+      font-size: 13px;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.2s;
+      border-bottom: 1px solid var(--border);
+    }
+    .escape-modal a:last-child { border-bottom: none; }
+    .escape-modal a:hover { color: var(--blue); }
+    .escape-modal a span {
+      font-size: 12px;
+      color: #555;
+      display: block;
+      margin-top: 2px;
+    }
 
     /* ── Phase Bar ── */
     .phase-bar {
@@ -475,6 +629,23 @@
 
     /* ── Mobile ── */
     @media (max-width: 640px) {
+      .nav-links {
+        display: none;
+        position: absolute;
+        top: 56px;
+        left: 0;
+        right: 0;
+        flex-direction: column;
+        background: rgba(10, 10, 10, 0.98);
+        border-bottom: 1px solid var(--border);
+        padding: 12px 24px;
+        gap: 12px;
+        backdrop-filter: blur(16px);
+        z-index: 100;
+      }
+      .nav-links.mobile-open { display: flex; }
+      .nav-hamburger { display: block; }
+      .nav { position: relative; }
       .starters-grid { grid-template-columns: 1fr; }
       .starters-title { font-size: 20px; }
       .chat-area { padding: 16px; }
@@ -484,6 +655,10 @@
       .phase-bar { gap: 4px; padding: 10px 12px; }
       .phase-step { font-size: 11px; }
       .phase-connector { width: 16px; }
+      .prechat-desc { display: none; }
+      .prechat-options { padding: 0 16px; }
+      .escape-hatch { right: 16px; bottom: 80px; }
+      .escape-modal { right: 16px; width: calc(100vw - 32px); bottom: 120px; }
     }
   </style>
 </head>
@@ -491,7 +666,14 @@
 
   <!-- Nav -->
   <nav class="nav">
-    <div class="nav-brand">S3 TECHNOLOGY <span>&middot;</span> HITL-AI-DLC Router</div>
+    <div class="nav-brand">S3 TECHNOLOGY <span>&middot;</span> HITL-AI-DLC</div>
+    <div class="nav-links" id="nav-links">
+      <a href="#" onclick="event.preventDefault(); scrollToChat();">Start a Project</a>
+      <a href="https://www.npmjs.com/package/hitl-aidlc" target="_blank" rel="noopener">Install CLI</a>
+      <a href="https://github.com/CornFedKratos/hitl-aidlc" target="_blank" rel="noopener">Skill Suite</a>
+      <a href="https://s3technology.io/#contact" target="_blank" rel="noopener">Contact</a>
+    </div>
+    <button class="nav-hamburger" id="nav-hamburger" onclick="toggleMobileNav()" aria-label="Toggle navigation">&#9776;</button>
   </nav>
 
   <!-- Phase Bar -->
@@ -526,6 +708,26 @@
         <div class="starter-card" onclick="sendStarter(this)">The design doesn't feel right</div>
         <div class="starter-card" onclick="sendStarter(this)">Production is down</div>
         <div class="starter-card" onclick="sendStarter(this)">I need to update my client on a delay</div>
+      </div>
+
+      <!-- Pre-Chat Options Panel -->
+      <div class="prechat-options" id="prechat-options">
+        <div class="prechat-divider">Already know what you need?</div>
+        <a class="prechat-card" href="https://www.npmjs.com/package/hitl-aidlc" target="_blank" rel="noopener">
+          <div class="prechat-icon">&#11015;</div>
+          <div class="prechat-label">Install the CLI</div>
+          <div class="prechat-desc">npx hitl-aidlc start</div>
+        </a>
+        <a class="prechat-card" href="https://github.com/CornFedKratos/hitl-aidlc" target="_blank" rel="noopener">
+          <div class="prechat-icon">&#128230;</div>
+          <div class="prechat-label">Get the Skill Suite</div>
+          <div class="prechat-desc">Install directly into Claude Code</div>
+        </a>
+        <a class="prechat-card" href="https://s3technology.io/#contact" target="_blank" rel="noopener">
+          <div class="prechat-icon">&#9993;</div>
+          <div class="prechat-label">Talk to S3 Technology</div>
+          <div class="prechat-desc">Consulting &amp; support</div>
+        </a>
       </div>
     </div>
 
@@ -567,7 +769,39 @@
   <footer class="footer">
     &copy; 2026 <a href="https://s3technology.io" target="_blank" rel="noopener">S3 Technology</a> &middot;
     Human-In-The-Lead AI Development Lifecycle
+    <div class="footer-links">
+      <a href="https://s3technology.io" target="_blank" rel="noopener">s3technology.io</a>
+      <span class="footer-sep">&middot;</span>
+      <a href="https://github.com/CornFedKratos/hitl-aidlc" target="_blank" rel="noopener">GitHub</a>
+      <span class="footer-sep">&middot;</span>
+      <a href="https://www.npmjs.com/package/hitl-aidlc" target="_blank" rel="noopener">npm</a>
+      <span class="footer-sep">&middot;</span>
+      <a href="https://www.npmjs.com/package/hitl-aidlc" target="_blank" rel="noopener">Install CLI</a>
+      <span class="footer-sep">&middot;</span>
+      <a href="https://s3technology.io/#contact" target="_blank" rel="noopener">Contact</a>
+    </div>
   </footer>
+
+  <!-- Escape Hatch (visible after first message) -->
+  <div class="escape-hatch" id="escape-hatch">
+    <button class="escape-trigger" onclick="toggleEscapeModal()">Other options &#8599;</button>
+  </div>
+  <div class="escape-modal" id="escape-modal">
+    <div class="escape-modal-title">Not what you were looking for?</div>
+    <a href="https://www.npmjs.com/package/hitl-aidlc" target="_blank" rel="noopener">
+      Install the CLI directly
+      <span>npx hitl-aidlc start</span>
+    </a>
+    <a href="https://github.com/CornFedKratos/hitl-aidlc" target="_blank" rel="noopener">
+      Get the skill suite for Claude Code
+    </a>
+    <a href="https://s3technology.io/#contact" target="_blank" rel="noopener">
+      Talk to S3 Technology about a custom engagement
+    </a>
+    <a href="https://s3technology.io" target="_blank" rel="noopener">
+      Back to s3technology.io
+    </a>
+  </div>
 
 <script>
 // ── State ──
@@ -610,6 +844,47 @@ const starters = document.getElementById('starters');
 const input = document.getElementById('input');
 const sendBtn = document.getElementById('send-btn');
 const handoff = document.getElementById('handoff');
+const prechatOptions = document.getElementById('prechat-options');
+const escapeHatch = document.getElementById('escape-hatch');
+const escapeModal = document.getElementById('escape-modal');
+const navLinks = document.getElementById('nav-links');
+
+// ── Nav hamburger toggle ──
+function toggleMobileNav() {
+  navLinks.classList.toggle('mobile-open');
+}
+
+// ── Scroll to chat input ──
+function scrollToChat() {
+  input.focus();
+  navLinks.classList.remove('mobile-open');
+}
+
+// ── Escape hatch modal ──
+function toggleEscapeModal() {
+  escapeModal.classList.toggle('open');
+}
+
+// Close escape modal on outside click
+document.addEventListener('click', function(e) {
+  if (escapeModal.classList.contains('open') &&
+      !escapeModal.contains(e.target) &&
+      !e.target.closest('.escape-trigger')) {
+    escapeModal.classList.remove('open');
+  }
+  // Close mobile nav on outside click
+  if (navLinks.classList.contains('mobile-open') &&
+      !navLinks.contains(e.target) &&
+      !e.target.closest('.nav-hamburger')) {
+    navLinks.classList.remove('mobile-open');
+  }
+});
+
+// ── Hide pre-chat options and show escape hatch on first message ──
+function onFirstMessage() {
+  if (prechatOptions) prechatOptions.style.display = 'none';
+  escapeHatch.classList.add('visible');
+}
 
 // ── Auto-resize textarea ──
 function autoResize(el) {
@@ -680,9 +955,10 @@ function renderMarkdown(text) {
 
 // ── Add message to chat ──
 function addMessage(role, content, agentRole) {
-  // Hide starters on first message
+  // Hide starters + pre-chat options on first message, show escape hatch
   if (starters.style.display !== 'none') {
     starters.style.display = 'none';
+    onFirstMessage();
   }
 
   const msg = document.createElement('div');
@@ -707,6 +983,7 @@ function addMessage(role, content, agentRole) {
 function createStreamingMessage(agentRole) {
   if (starters.style.display !== 'none') {
     starters.style.display = 'none';
+    onFirstMessage();
   }
 
   const msg = document.createElement('div');
