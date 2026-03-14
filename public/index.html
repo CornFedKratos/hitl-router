@@ -328,6 +328,44 @@
       font-size: 13px;
     }
     .handoff-link:hover { text-decoration: underline; }
+    .handoff-step {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .handoff-step-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(110, 231, 183, 0.15);
+      color: #6EE7B7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 600;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .handoff-step-body { flex: 1; }
+    .handoff-step-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .handoff-step-desc {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.6;
+      margin-bottom: 8px;
+    }
+    .handoff-saved {
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+      margin-top: 4px;
+    }
 
     /* ── Input Area ── */
     .input-area {
@@ -456,20 +494,31 @@
 
     <!-- Handoff Panel (hidden until Phase 0 complete) -->
     <div class="handoff" id="handoff">
-      <div class="handoff-title">Phase 0 complete. Ready to build.</div>
-      <div class="handoff-desc">
-        Run this in your terminal. Claude Code opens with your full project
-        context already loaded. Phase 1 starts immediately. Your session is
-        saved for 7 days.
+      <div class="handoff-title">You're ready to start building.</div>
+      <div class="handoff-desc">Here's your plan. We've saved everything.</div>
+
+      <div class="handoff-step">
+        <div class="handoff-step-num">1</div>
+        <div class="handoff-step-body">
+          <div class="handoff-step-title">Install Claude Code</div>
+          <div class="handoff-step-desc">Download it at <a class="handoff-link" href="https://claude.ai/code" target="_blank" rel="noopener">claude.ai/code</a><br>It's free. It's what you'll use to build.</div>
+        </div>
       </div>
-      <div class="handoff-cmd">
-        <code id="handoff-command">npx hitl-aidlc start --session loading...</code>
-        <button class="handoff-copy" onclick="copyCommand()">Copy</button>
+
+      <div class="handoff-step">
+        <div class="handoff-step-num">2</div>
+        <div class="handoff-step-body">
+          <div class="handoff-step-title">Run this inside Claude Code</div>
+          <div class="handoff-step-desc">Open Claude Code. In the terminal panel, run:</div>
+          <div class="handoff-cmd">
+            <code id="handoff-command">npx hitl-aidlc start --session loading...</code>
+            <button class="handoff-copy" onclick="copyCommand()">Copy</button>
+          </div>
+          <div class="handoff-step-desc">That's it. Your project opens exactly where we left off.</div>
+        </div>
       </div>
-      <div>
-        <span style="color: var(--muted); font-size: 13px;">Don't have Claude Code?</span>
-        <a class="handoff-link" href="https://claude.ai/code" target="_blank" rel="noopener">claude.ai/code</a>
-      </div>
+
+      <div class="handoff-saved">Your session is saved for 7 days.</div>
     </div>
   </div>
 
@@ -531,6 +580,11 @@ function copyCommand() {
   });
 }
 
+// ── Strip PHASE0_COMPLETE JSON from rendered text ──
+function stripPhaseComplete(text) {
+  return text.replace(/\n?PHASE0_COMPLETE:\{.*?\}$/s, '').trim();
+}
+
 // ── Render markdown (lightweight) ──
 function renderMarkdown(text) {
   let html = text
@@ -585,8 +639,9 @@ function addMessage(role, content, agentRole) {
 
   let inner = '';
   if (role === 'agent' && agentRole) {
+    const cleanContent = stripPhaseComplete(content);
     inner += `<div><span class="role-badge ${agentRole}">${agentRole}</span>`;
-    inner += `<div class="message-content">${renderMarkdown(content)}</div></div>`;
+    inner += `<div class="message-content">${renderMarkdown(cleanContent)}</div></div>`;
   } else {
     inner += `<div class="message-content">${escapeHtml(content)}</div>`;
   }
@@ -717,7 +772,7 @@ async function sendMessage() {
           } else if (parsed.type === 'text') {
             fullText += parsed.text;
             if (streamMsg) {
-              updateStreamingMessage(streamMsg, fullText, detectedRole);
+              updateStreamingMessage(streamMsg, stripPhaseComplete(fullText), detectedRole);
             }
           } else if (parsed.type === 'done') {
             sessionId = parsed.session_id;
