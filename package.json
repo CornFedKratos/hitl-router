@@ -1,0 +1,9 @@
+{
+  "name": "hitl-router",
+  "private": true,
+  "description": "HITL-AI-DLC Agent Router — Web Interface",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@supabase/supabase-js": "^2.49.0"
+  }
+}
