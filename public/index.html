@@ -214,6 +214,218 @@
       margin-top: 2px;
     }
 
+    /* ── Quick Build: Prototype Panel ── */
+    .prototype-panel {
+      display: none;
+      padding: 24px;
+      max-width: 960px;
+      margin: 0 auto;
+      animation: fadeIn 0.4s ease;
+    }
+    .prototype-panel.visible { display: block; }
+    .prototype-panel-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+    .prototype-panel-subtitle {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+    .prototype-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+    .prototype-card {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .prototype-card:hover {
+      border-color: rgba(59, 159, 231, 0.4);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+    .prototype-card.selected {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 1px var(--blue), 0 8px 24px rgba(59, 159, 231, 0.2);
+    }
+    .prototype-iframe {
+      width: 100%;
+      height: 280px;
+      border: none;
+      pointer-events: none;
+      background: white;
+    }
+    .prototype-label {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+    }
+    .prototype-label-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+    .prototype-label-desc {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .prototype-select-btn {
+      display: none;
+      margin: 20px auto 0;
+      background: var(--blue);
+      border: none;
+      border-radius: 10px;
+      padding: 12px 32px;
+      color: white;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .prototype-select-btn.visible { display: block; }
+    .prototype-select-btn:hover { background: #2E8BC4; box-shadow: 0 8px 24px rgba(59, 159, 231, 0.3); }
+    .prototype-loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .prototype-loading .typing { display: inline-flex; gap: 4px; vertical-align: middle; margin-left: 8px; }
+
+    /* ── Quick Build: CDO Emotional Brief ── */
+    .cdo-brief {
+      background: rgba(59, 27, 107, 0.12);
+      border: 1px solid rgba(196, 181, 253, 0.2);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin: 16px 0;
+      max-width: 640px;
+      font-size: 14px;
+      line-height: 1.7;
+      color: #C4B5FD;
+      font-style: italic;
+    }
+
+    /* ── Quick Build: Outcome Screen ── */
+    .outcome-screen {
+      display: none;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 24px;
+      animation: slideIn 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .outcome-screen.visible { display: block; }
+    .outcome-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #6EE7B7;
+      margin-bottom: 16px;
+    }
+    .outcome-preview {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+    .outcome-preview iframe {
+      width: 100%;
+      height: 480px;
+      border: none;
+      background: white;
+    }
+    .outcome-actions {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      background: var(--surface);
+    }
+    .outcome-download {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #064E3B;
+      color: #6EE7B7;
+      border: 1px solid rgba(110, 231, 183, 0.3);
+      border-radius: 10px;
+      padding: 14px 28px;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+      margin-bottom: 8px;
+    }
+    .outcome-download:hover {
+      background: #065F46;
+      border-color: #6EE7B7;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(110, 231, 183, 0.2);
+    }
+    .outcome-download-desc {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 0;
+    }
+    .outcome-upsell {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      background: var(--surface);
+    }
+    .outcome-upsell-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 12px;
+    }
+    .outcome-upsell-list {
+      list-style: none;
+      margin-bottom: 16px;
+    }
+    .outcome-upsell-list li {
+      font-size: 14px;
+      color: var(--muted);
+      padding: 4px 0;
+    }
+    .outcome-upsell-list li::before {
+      content: '\2192 ';
+      color: var(--blue);
+    }
+    .outcome-contact {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 20px;
+      color: var(--blue);
+      font-family: inherit;
+      font-size: 14px;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .outcome-contact:hover { border-color: var(--blue); }
+    .outcome-goodbye {
+      font-size: 14px;
+      color: var(--muted);
+      text-align: center;
+      margin-top: 8px;
+      font-style: italic;
+    }
+
     /* ── Phase Bar ── */
     .phase-bar {
       display: flex;
@@ -659,6 +871,9 @@
       .prechat-options { padding: 0 16px; }
       .escape-hatch { right: 16px; bottom: 80px; }
       .escape-modal { right: 16px; width: calc(100vw - 32px); bottom: 120px; }
+      .prototype-grid { grid-template-columns: 1fr; }
+      .prototype-iframe { height: 200px; }
+      .outcome-preview iframe { height: 320px; }
     }
   </style>
 </head>
@@ -754,6 +969,60 @@
 
       <div class="handoff-saved">Session saved for 7 days.</div>
     </div>
+
+    <!-- Quick Build: Prototype Panel -->
+    <div class="prototype-panel" id="prototype-panel">
+      <div class="prototype-panel-title">Choose a direction</div>
+      <div class="prototype-panel-subtitle">Click the one that feels right. The CDO will take it from there.</div>
+      <div class="prototype-grid" id="prototype-grid">
+        <div class="prototype-card" onclick="selectPrototypeCard('A')">
+          <iframe class="prototype-iframe" id="proto-iframe-A" sandbox="allow-same-origin"></iframe>
+          <div class="prototype-label">
+            <div class="prototype-label-name">Warm &amp; Trustworthy</div>
+            <div class="prototype-label-desc">Soft, approachable, family-friendly</div>
+          </div>
+        </div>
+        <div class="prototype-card" onclick="selectPrototypeCard('B')">
+          <iframe class="prototype-iframe" id="proto-iframe-B" sandbox="allow-same-origin"></iframe>
+          <div class="prototype-label">
+            <div class="prototype-label-name">Clean &amp; Professional</div>
+            <div class="prototype-label-desc">Structured, information-forward</div>
+          </div>
+        </div>
+        <div class="prototype-card" onclick="selectPrototypeCard('C')">
+          <iframe class="prototype-iframe" id="proto-iframe-C" sandbox="allow-same-origin"></iframe>
+          <div class="prototype-label">
+            <div class="prototype-label-name">Bold &amp; Modern</div>
+            <div class="prototype-label-desc">High contrast, premium feel</div>
+          </div>
+        </div>
+      </div>
+      <button class="prototype-select-btn" id="prototype-select-btn" onclick="buildSelectedPrototype()">Build this one</button>
+    </div>
+
+    <!-- Quick Build: Outcome Screen -->
+    <div class="outcome-screen" id="outcome-screen">
+      <div class="outcome-title">Your website is ready.</div>
+      <div class="outcome-preview">
+        <iframe id="outcome-iframe" sandbox="allow-same-origin"></iframe>
+      </div>
+      <div class="outcome-actions">
+        <button class="outcome-download" onclick="downloadSite()">Download your website</button>
+        <div class="outcome-download-desc">Save it as a file. Open it in any browser. It's yours — no strings attached.</div>
+      </div>
+      <div class="outcome-upsell">
+        <div class="outcome-upsell-title">Want to take it further?</div>
+        <div class="outcome-upsell-subtitle" style="font-size:13px;color:var(--muted);margin-bottom:12px;">S3 Technology can:</div>
+        <ul class="outcome-upsell-list">
+          <li>Host it with a real domain</li>
+          <li>Connect your contact form to your email</li>
+          <li>Add Google Analytics</li>
+          <li>Maintain and update it over time</li>
+        </ul>
+        <a class="outcome-contact" href="mailto:don@s3technology.io" target="_blank" rel="noopener">Get in touch &rarr; don@s3technology.io</a>
+      </div>
+      <div class="outcome-goodbye" id="outcome-goodbye"></div>
+    </div>
   </div>
 
   <!-- Input -->
@@ -808,6 +1077,11 @@
 let sessionId = null;
 let isStreaming = false;
 let phase0Complete = false;
+let quickbuildMode = false;
+let quickbuildContent = null;
+let selectedPrototype = null;
+let prototypeHtmlCache = {};
+let builtSiteHtml = null;
 
 // ── Render buffer for smooth streaming ──
 let renderBuffer = '';
@@ -906,9 +1180,12 @@ function handleKeydown(e) {
   }
 }
 
-// ── Strip PHASE0_COMPLETE JSON from rendered text ──
+// ── Strip system JSON signals from rendered text ──
 function stripPhaseComplete(text) {
-  return text.replace(/\n?PHASE0_COMPLETE:\{.*?\}$/s, '').trim();
+  return text
+    .replace(/\n?PHASE0_COMPLETE:\{.*?\}$/s, '')
+    .replace(/\n?QUICKBUILD_READY:\{.*?\}$/s, '')
+    .trim();
 }
 
 // ── Render markdown (lightweight) ──
@@ -1037,6 +1314,147 @@ function updatePhaseBar(phase, complete) {
   }
 }
 
+// ── Quick Build: strip signal from rendered text ──
+function stripQuickBuild(text) {
+  return text.replace(/\n?QUICKBUILD_READY:\{.*?\}$/s, '').trim();
+}
+
+// ── Quick Build: activate Quick Build mode ──
+async function activateQuickBuild(content) {
+  quickbuildMode = true;
+  quickbuildContent = content;
+
+  // Add CDO handoff message
+  const cdoBrief = buildCdoBrief(content);
+  addMessage('agent', cdoBrief, 'CDO');
+
+  // Show prototype panel with loading state
+  const panel = document.getElementById('prototype-panel');
+  const grid = document.getElementById('prototype-grid');
+  panel.classList.add('visible');
+
+  // Temporarily show loading
+  grid.style.opacity = '0.4';
+  const loadingDiv = document.createElement('div');
+  loadingDiv.className = 'prototype-loading';
+  loadingDiv.id = 'proto-loading';
+  loadingDiv.innerHTML = 'Generating prototypes<span class="typing"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></span>';
+  panel.insertBefore(loadingDiv, grid);
+
+  // Change input placeholder
+  input.placeholder = 'Tell the CDO what you\'d like to change...';
+
+  try {
+    const res = await fetch('/api/prototypes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, content }),
+    });
+
+    if (!res.ok) throw new Error('Failed to generate prototypes');
+    const protos = await res.json();
+    prototypeHtmlCache = protos;
+
+    // Load into iframes
+    loadPrototypeIframe('A', protos.prototypeA);
+    loadPrototypeIframe('B', protos.prototypeB);
+    loadPrototypeIframe('C', protos.prototypeC);
+
+    // Remove loading, show grid
+    const loading = document.getElementById('proto-loading');
+    if (loading) loading.remove();
+    grid.style.opacity = '1';
+
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (err) {
+    const loading = document.getElementById('proto-loading');
+    if (loading) loading.textContent = 'Failed to generate prototypes. Send a message to the CDO to try again.';
+    grid.style.opacity = '1';
+    console.error('Prototype generation failed:', err);
+  }
+}
+
+function buildCdoBrief(content) {
+  const name = content.business_name || 'your business';
+  const tagline = content.tagline || '';
+  return `Got it. I've read everything from your conversation.\n\nWhat I heard: **${tagline}**. Not cold or corporate — the kind of presence that makes people feel confident they're making the right call. The palette should feel like a handshake, not a logo.\n\nI've put together three directions for ${name}. Tell me which one resonates.`;
+}
+
+function loadPrototypeIframe(letter, html) {
+  const iframe = document.getElementById(`proto-iframe-${letter}`);
+  if (!iframe || !html) return;
+  const blob = new Blob([html], { type: 'text/html' });
+  iframe.src = URL.createObjectURL(blob);
+}
+
+function selectPrototypeCard(letter) {
+  selectedPrototype = letter;
+  // Update card selection UI
+  document.querySelectorAll('.prototype-card').forEach((card, i) => {
+    const l = ['A', 'B', 'C'][i];
+    card.classList.toggle('selected', l === letter);
+  });
+  // Show the build button
+  document.getElementById('prototype-select-btn').classList.add('visible');
+}
+
+async function buildSelectedPrototype() {
+  if (!selectedPrototype || !quickbuildContent) return;
+
+  const btn = document.getElementById('prototype-select-btn');
+  btn.disabled = true;
+  btn.textContent = 'Building your site...';
+
+  try {
+    const res = await fetch('/api/build', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session_id: sessionId,
+        selected_prototype: selectedPrototype,
+        content: quickbuildContent,
+        prototype_html: prototypeHtmlCache[`prototype${selectedPrototype}`] || '',
+      }),
+    });
+
+    if (!res.ok) throw new Error('Build failed');
+    const data = await res.json();
+    builtSiteHtml = data.html;
+
+    // Hide prototype panel, show outcome screen
+    document.getElementById('prototype-panel').classList.remove('visible');
+    const outcome = document.getElementById('outcome-screen');
+    outcome.classList.add('visible');
+
+    // Load preview
+    const previewIframe = document.getElementById('outcome-iframe');
+    const blob = new Blob([builtSiteHtml], { type: 'text/html' });
+    previewIframe.src = URL.createObjectURL(blob);
+
+    // Set goodbye message
+    const name = quickbuildContent.business_name || 'your project';
+    document.getElementById('outcome-goodbye').textContent = `Good luck with ${name}. We hope it brings you new customers.`;
+
+    outcome.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = 'Build this one';
+    addMessage('agent', `Build failed: ${err.message}. Try selecting again.`, 'CDO');
+  }
+}
+
+function downloadSite() {
+  if (!builtSiteHtml) return;
+  const name = (quickbuildContent?.business_name || 'website').toLowerCase().replace(/\s+/g, '-');
+  const blob = new Blob([builtSiteHtml], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${name}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // ── Show handoff panel ──
 function showHandoff(sid) {
   document.getElementById('handoff-download').href = `/api/launcher?session=${sid}`;
@@ -1058,10 +1476,15 @@ async function sendMessage() {
   addMessage('user', text);
 
   try {
+    const chatBody = { message: text, session_id: sessionId };
+    if (quickbuildMode) {
+      chatBody.quickbuild = true;
+      chatBody.quickbuild_content = quickbuildContent;
+    }
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: text, session_id: sessionId }),
+      body: JSON.stringify(chatBody),
     });
 
     if (!res.ok) {
@@ -1106,7 +1529,12 @@ async function sendMessage() {
             sessionId = parsed.session_id;
             updatePhaseBar(parsed.phase, parsed.phase0_complete);
 
-            if (parsed.phase0_complete) {
+            if (parsed.quickbuild_ready && parsed.quickbuild_content) {
+              // Quick Build path — CDO takes over
+              phase0Complete = true;
+              activateQuickBuild(parsed.quickbuild_content);
+            } else if (parsed.phase0_complete) {
+              // Standard path — show CLI handoff
               phase0Complete = true;
               showHandoff(parsed.session_id);
             }

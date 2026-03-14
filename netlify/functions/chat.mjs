@@ -36,8 +36,10 @@ const INTENT_PATTERNS = [
   { role: 'CTO', patterns: ['architecture', 'annotation', 'collision', 'stack decision', 'merge protocol', 'technical debt'] },
 ];
 
-function detectRole(message, phase) {
-  // During Phase 0, default to CPO unless strong signal for another role
+function detectRole(message, session) {
+  // If Quick Build mode is active, CDO owns the conversation
+  if (session?.quickbuild) return 'CDO';
+
   const msgLower = message.toLowerCase();
 
   for (const { role, patterns } of INTENT_PATTERNS) {
@@ -69,18 +71,50 @@ Guide the conversation naturally:
 4. Make a clear GO / CONDITIONAL GO / STOP recommendation
 5. Ask the orchestrator to confirm the Go decision
 
-When Phase 0 is complete and a Go/No-Go decision has been EXPLICITLY CONFIRMED by the orchestrator,
-append this exact JSON block at the end of your response on its own line:
+QUICK BUILD DETECTION:
+After the orchestrator confirms the Go decision, evaluate whether this is a Quick Build project.
+A project qualifies for Quick Build when 3 or more of these are true:
+- Deliverable is a website, landing page, or single-page tool
+- Timeline is days or "as soon as possible"
+- No mention of user accounts, logins, or roles
+- No payments or financial transactions
+- No external API integrations
+- Audience is local or regional
+- Goal is lead generation, credibility, or information display
 
+If Quick Build is detected:
+1. Write your normal Go decision confirmation
+2. Then add a handoff message: "This looks like a great fit for a Quick Build — [brief reason]. This is a job for our Chief Design Officer. Let me grab Carl."
+3. Append this JSON block at the end on its own line:
+QUICKBUILD_READY:{"business_name":"...","tagline":"...","location":"...","services":["..."],"credibility":"...","goal":"...","phone":"","email":"","problem":"...","solution":"...","audience":"...","tier":1,"client_engagement":false,"security_scope":false}
+Fill in ALL fields from the conversation. Services should be an array. Leave phone/email empty if not provided.
+
+If Quick Build is NOT detected (complex project), use the standard completion:
 PHASE0_COMPLETE:{"phase0_complete":true,"problem":"...","solution":"...","audience":"...","tier":${session?.tier || 1},"client_engagement":${session?.client_engagement || false},"security_scope":${session?.security_scope || false}}
 
-Fill in the actual problem, solution, and audience values extracted from the conversation.
-Set tier to 2 if client_engagement is true, 3 if security_scope is also true, otherwise 1.
-Set client_engagement to true if the orchestrator mentioned a paying client.
-Set security_scope to true if the project involves payments, PII, auth, or security-sensitive features.
+Do NOT append either block until the orchestrator has explicitly confirmed the Go decision.
+Do NOT mention these JSON blocks to the orchestrator — they are for system use only.` : '';
 
-Do NOT append this block until the orchestrator has explicitly confirmed the Go decision.
-Do NOT mention this JSON block to the orchestrator — it is for system use only.` : '';
+  // CDO in Quick Build mode gets a special identity
+  const cdoQuickBuildInstructions = (role === 'CDO' && session?.quickbuild) ? `
+
+QUICK BUILD MODE — You are Carl, the Chief Design Officer.
+You have just received a handoff from the CPO. You have read the entire conversation.
+
+Your identity in Quick Build mode:
+- You speak with warmth and design intuition
+- You lead with what you HEARD emotionally from the conversation — not just facts
+- You understand that the orchestrator's brand should feel like a handshake, not a logo
+- You respond to all design feedback and refinement requests
+- You are the owner of this conversation from now on
+
+When responding to the orchestrator's first message after handoff, or to feedback about prototypes:
+- Acknowledge what they said
+- Offer specific design guidance
+- Be direct but warm
+
+Project content for this Quick Build:
+${JSON.stringify(session?.quickbuild_content || {}, null, 2)}` : '';
 
   return `You are the ${ROLE_NAMES[role]} in the HITL-AI-DLC methodology.
 
@@ -95,7 +129,7 @@ Project context:
 - Audience: ${session?.audience || 'not yet defined'}
 - Tier: ${session?.tier || 1}
 - Phase: ${session?.phase || 0}
-${phase0Instructions}`;
+${phase0Instructions}${cdoQuickBuildInstructions}`;
 }
 
 // ── Session management ──
@@ -170,7 +204,7 @@ async function completePhase0(sessionId, metadata) {
     details: `Problem: ${metadata.problem}\nSolution: ${metadata.solution}\nAudience: ${metadata.audience}\nTier: ${metadata.tier}\nClient engagement: ${metadata.client_engagement}\nSecurity scope: ${metadata.security_scope}`,
   });
 
-  // Write feasibility KB entry (the full response that triggered completion)
+  // Write feasibility KB entry
   await supabase.from('kb_entries').insert({
     session_id: sessionId,
     phase: 0,
@@ -206,7 +240,7 @@ export default async (req) => {
   try {
     const body = await req.json();
     const { message } = body;
-    let { session_id: sessionId } = body;
+    let { session_id: sessionId, quickbuild: clientQuickbuild, quickbuild_content: clientQbContent } = body;
 
     if (!message || typeof message !== 'string') {
       return new Response(JSON.stringify({ error: 'Message is required' }), {
@@ -224,6 +258,12 @@ export default async (req) => {
       session = await getSession(sessionId);
     }
 
+    // Overlay client-side Quick Build state onto session for prompt building
+    if (clientQuickbuild) {
+      session.quickbuild = true;
+      session.quickbuild_content = clientQbContent || {};
+    }
+
     // 2. Store user message
     await storeMessage(sessionId, 'user', message);
 
@@ -231,7 +271,7 @@ export default async (req) => {
     const messages = await getSessionMessages(sessionId);
 
     // 4. Detect intent → role
-    const detectedRole = detectRole(message, session.phase);
+    const detectedRole = detectRole(message, session);
 
     // 5. Build system prompt
     const systemPrompt = buildSystemPrompt(detectedRole, session);
@@ -277,24 +317,50 @@ export default async (req) => {
             }
           }
 
-          // 9. Check for PHASE0_COMPLETE in the full response
+          // 9. Check for signals in the full response
           let phase0Complete = false;
           let phase0Metadata = null;
+          let quickbuildReady = false;
+          let quickbuildContent = null;
           let cleanResponse = fullResponse;
 
-          const phase0Match = fullResponse.match(/PHASE0_COMPLETE:(\{.*\})/);
-          if (phase0Match) {
+          // Check for QUICKBUILD_READY first (takes priority)
+          const qbMatch = fullResponse.match(/QUICKBUILD_READY:(\{.*\})/);
+          if (qbMatch) {
             try {
-              phase0Metadata = JSON.parse(phase0Match[1]);
+              quickbuildContent = JSON.parse(qbMatch[1]);
+              quickbuildReady = true;
               phase0Complete = true;
-              // Strip the PHASE0_COMPLETE block from the displayed response
-              cleanResponse = fullResponse.replace(/\n?PHASE0_COMPLETE:\{.*\}/, '').trim();
+              cleanResponse = fullResponse.replace(/\n?QUICKBUILD_READY:\{.*\}/, '').trim();
+              // Extract phase0 metadata from quickbuild content
+              phase0Metadata = {
+                problem: quickbuildContent.problem,
+                solution: quickbuildContent.solution,
+                audience: quickbuildContent.audience,
+                tier: quickbuildContent.tier || 1,
+                client_engagement: quickbuildContent.client_engagement || false,
+                security_scope: quickbuildContent.security_scope || false,
+              };
             } catch {
-              // Invalid JSON — ignore, not a real completion signal
+              // Invalid JSON — fall through to PHASE0_COMPLETE check
             }
           }
 
-          // 10. Store agent response (clean version without the JSON block)
+          // Check for standard PHASE0_COMPLETE
+          if (!quickbuildReady) {
+            const phase0Match = fullResponse.match(/PHASE0_COMPLETE:(\{.*\})/);
+            if (phase0Match) {
+              try {
+                phase0Metadata = JSON.parse(phase0Match[1]);
+                phase0Complete = true;
+                cleanResponse = fullResponse.replace(/\n?PHASE0_COMPLETE:\{.*\}/, '').trim();
+              } catch {
+                // Invalid JSON — ignore
+              }
+            }
+          }
+
+          // 10. Store agent response (clean version without JSON blocks)
           await storeMessage(sessionId, 'agent', cleanResponse, detectedRole);
 
           // 11. Handle Phase 0 completion
@@ -303,16 +369,22 @@ export default async (req) => {
           }
 
           // 12. Send completion event
-          const done = JSON.stringify({
+          const donePayload = {
             type: 'done',
             session_id: sessionId,
             detected_role: detectedRole,
             phase: phase0Complete ? 1 : session.phase,
             phase0_complete: phase0Complete,
             go_decision: phase0Complete ? true : session.go_decision,
-          });
-          controller.enqueue(encoder.encode(`data: ${done}\n\n`));
+          };
 
+          // Add Quick Build data to the done event
+          if (quickbuildReady && quickbuildContent) {
+            donePayload.quickbuild_ready = true;
+            donePayload.quickbuild_content = quickbuildContent;
+          }
+
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(donePayload)}\n\n`));
           controller.close();
         } catch (err) {
           const errorMsg = JSON.stringify({ type: 'error', error: err.message });
