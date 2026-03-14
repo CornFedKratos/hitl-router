@@ -364,11 +364,40 @@
       line-height: 1.6;
       margin-bottom: 8px;
     }
+    .handoff-download {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #064E3B;
+      color: #6EE7B7;
+      border: 1px solid rgba(110, 231, 183, 0.3);
+      border-radius: 10px;
+      padding: 12px 24px;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 12px;
+    }
+    .handoff-download:hover {
+      background: #065F46;
+      border-color: #6EE7B7;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(110, 231, 183, 0.2);
+    }
+    .handoff-download::before {
+      content: '\2B07';
+      font-size: 16px;
+    }
     .handoff-saved {
       font-size: 13px;
       color: var(--muted);
       text-align: center;
       margin-top: 4px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
     }
 
     /* ── Input Area ── */
@@ -502,31 +531,26 @@
 
     <!-- Handoff Panel (hidden until Phase 0 complete) -->
     <div class="handoff" id="handoff">
-      <div class="handoff-title">You're ready to start building.</div>
-      <div class="handoff-desc">Here's your plan. We've saved everything.</div>
+      <div class="handoff-title">Phase 0 complete. You're ready to start building.</div>
 
       <div class="handoff-step">
         <div class="handoff-step-num">1</div>
         <div class="handoff-step-body">
           <div class="handoff-step-title">Install Claude Code</div>
-          <div class="handoff-step-desc">Download it at <a class="handoff-link" href="https://claude.ai/code" target="_blank" rel="noopener">claude.ai/code</a><br>It's free. It's what you'll use to build.</div>
+          <div class="handoff-step-desc">Free download at <a class="handoff-link" href="https://claude.ai/code" target="_blank" rel="noopener">claude.ai/code</a></div>
         </div>
       </div>
 
       <div class="handoff-step">
         <div class="handoff-step-num">2</div>
         <div class="handoff-step-body">
-          <div class="handoff-step-title">Run this inside Claude Code</div>
-          <div class="handoff-step-desc">Open Claude Code. In the terminal panel, run:</div>
-          <div class="handoff-cmd">
-            <code id="handoff-command">npx hitl-aidlc start --session loading...</code>
-            <button class="handoff-copy" onclick="copyCommand()">Copy</button>
-          </div>
-          <div class="handoff-step-desc">That's it. Your project opens exactly where we left off.</div>
+          <div class="handoff-step-title">Start your project</div>
+          <a class="handoff-download" id="handoff-download" href="#" download="start-project.command">Download Project Launcher</a>
+          <div class="handoff-step-desc">Double-click the downloaded file.<br>Your project opens automatically in Claude Code.</div>
         </div>
       </div>
 
-      <div class="handoff-saved">Your session is saved for 7 days.</div>
+      <div class="handoff-saved">Session saved for 7 days.</div>
     </div>
   </div>
 
@@ -605,16 +629,6 @@ function handleKeydown(e) {
     e.preventDefault();
     sendMessage();
   }
-}
-
-// ── Copy handoff command ──
-function copyCommand() {
-  const cmd = document.getElementById('handoff-command').textContent;
-  navigator.clipboard.writeText(cmd).then(() => {
-    const btn = document.querySelector('.handoff-copy');
-    btn.textContent = 'Copied!';
-    setTimeout(() => btn.textContent = 'Copy', 2000);
-  });
 }
 
 // ── Strip PHASE0_COMPLETE JSON from rendered text ──
@@ -748,8 +762,7 @@ function updatePhaseBar(phase, complete) {
 
 // ── Show handoff panel ──
 function showHandoff(sid) {
-  const cmd = `SUPABASE_PUBLISHABLE_KEY=sb_publishable_CFnD1bqw3wj99V7J9UVKBw_vosclF7H npx hitl-aidlc start --session ${sid}`;
-  document.getElementById('handoff-command').textContent = cmd;
+  document.getElementById('handoff-download').href = `/api/launcher?session=${sid}`;
   handoff.classList.add('visible');
   handoff.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
