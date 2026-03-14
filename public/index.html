@@ -177,6 +177,7 @@
       line-height: 1.7;
       max-width: 640px;
       word-break: break-word;
+      white-space: pre-wrap;
     }
     .message.user .message-content {
       background: var(--surface2);
@@ -279,7 +280,10 @@
       align-self: center;
       animation: fadeIn 0.4s ease;
     }
-    .handoff.visible { display: block; }
+    .handoff.visible {
+      display: block;
+      animation: slideIn 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    }
     .handoff-title {
       font-size: 16px;
       font-weight: 600;
@@ -431,6 +435,10 @@
       from { opacity: 0; transform: translateY(8px); }
       to { opacity: 1; transform: translateY(0); }
     }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
     @keyframes typingPulse {
       0%, 60%, 100% { opacity: 0.3; transform: scale(1); }
       30% { opacity: 1; transform: scale(1.2); }
@@ -542,6 +550,35 @@
 let sessionId = null;
 let isStreaming = false;
 let phase0Complete = false;
+
+// ── Render buffer for smooth streaming ──
+let renderBuffer = '';
+let renderTimer = null;
+let activeStreamMsg = null;
+let activeStreamText = '';
+
+function flushRenderBuffer() {
+  if (activeStreamMsg && activeStreamText) {
+    const content = activeStreamMsg.querySelector('.message-content');
+    content.innerHTML = renderMarkdown(stripPhaseComplete(activeStreamText));
+    activeStreamMsg.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }
+}
+
+function onChunk(text) {
+  activeStreamText += text;
+  if (!renderTimer) {
+    renderTimer = setInterval(flushRenderBuffer, 50);
+  }
+}
+
+function onStreamComplete() {
+  clearInterval(renderTimer);
+  renderTimer = null;
+  flushRenderBuffer();
+  activeStreamMsg = null;
+  activeStreamText = '';
+}
 
 // ── DOM ──
 const chatArea = document.getElementById('chat-area');
@@ -711,10 +748,10 @@ function updatePhaseBar(phase, complete) {
 
 // ── Show handoff panel ──
 function showHandoff(sid) {
-  const cmd = `npx hitl-aidlc start --session ${sid}`;
+  const cmd = `SUPABASE_PUBLISHABLE_KEY=sb_publishable_CFnD1bqw3wj99V7J9UVKBw_vosclF7H npx hitl-aidlc start --session ${sid}`;
   document.getElementById('handoff-command').textContent = cmd;
   handoff.classList.add('visible');
-  scrollToBottom();
+  handoff.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 // ── Send message ──
@@ -769,12 +806,13 @@ async function sendMessage() {
             sessionId = parsed.session_id;
             detectedRole = parsed.detected_role;
             streamMsg = createStreamingMessage(detectedRole);
+            activeStreamMsg = streamMsg;
+            activeStreamText = '';
           } else if (parsed.type === 'text') {
             fullText += parsed.text;
-            if (streamMsg) {
-              updateStreamingMessage(streamMsg, stripPhaseComplete(fullText), detectedRole);
-            }
+            onChunk(parsed.text);
           } else if (parsed.type === 'done') {
+            onStreamComplete();
             sessionId = parsed.session_id;
             updatePhaseBar(parsed.phase, parsed.phase0_complete);
 
