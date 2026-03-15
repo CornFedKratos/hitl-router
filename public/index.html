@@ -2762,12 +2762,28 @@ async function submitHumanLedForm(e) {
 
     if (!res.ok) throw new Error('Submission failed');
 
-    // Show confirmation
+    // HIT-37: Personalized confirmation screen
+    const leadName = formData.name || 'there';
+    const leadEmail = formData.email || '';
+    const problemSummary = formData.problem || popupAnswers?.problem || '';
+
     document.getElementById('human-led-handoff-content').innerHTML = `
       <div class="human-led-confirmation">
         <div class="human-led-confirmation-icon">&#9989;</div>
-        <div class="human-led-confirmation-title">We'll be in touch within 1 business day.</div>
-        <div class="human-led-confirmation-desc">Our team has your project details and will reach out to schedule a conversation.</div>
+        <div class="human-led-confirmation-title">Thanks ${escapeHtml(leadName)} \u2014 we've got it.</div>
+        <div class="human-led-confirmation-desc">
+          Don will review your project and reach out within <strong>1 business day</strong>${leadEmail ? ' at <strong>' + escapeHtml(leadEmail) + '</strong>' : ''}.
+        </div>
+        ${problemSummary ? '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin:16px 0;font-size:13px;color:var(--muted);"><strong>What you told us:</strong> ' + escapeHtml(problemSummary) + '</div>' : ''}
+        <div style="margin-top:20px;display:flex;flex-direction:column;gap:10px;">
+          ${document.getElementById('mockup-panel')?.classList.contains('visible') || mockupData ? '<a onclick="document.getElementById(\'mockup-panel\').scrollIntoView({behavior:\'smooth\'})" style="font-size:13px;color:var(--blue);text-decoration:none;cursor:pointer;">View the 3 directions we generated for your project \u2192</a>' : ''}
+          <a href="https://s3technology.io" target="_blank" rel="noopener" style="font-size:13px;color:var(--blue);text-decoration:none;">Learn more about how we work \u2192</a>
+          <a onclick="downloadCalendarEvent('${escapeHtml(leadEmail)}')" style="font-size:13px;color:var(--blue);text-decoration:none;cursor:pointer;">Add follow-up to your calendar \u2192</a>
+        </div>
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);display:flex;justify-content:center;gap:16px;">
+          <a href="https://www.linkedin.com/company/s3-technology-llc" target="_blank" rel="noopener" style="font-size:12px;color:var(--muted);text-decoration:none;">LinkedIn</a>
+          <a href="https://s3technology.io" target="_blank" rel="noopener" style="font-size:12px;color:var(--muted);text-decoration:none;">s3technology.io</a>
+        </div>
       </div>
     `;
   } catch (err) {
@@ -3213,6 +3229,46 @@ function showHandoff(sid) {
   document.getElementById('handoff-download').href = `/api/launcher?session=${sid}`;
   handoff.classList.add('visible');
   handoff.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// ── HIT-37: Calendar event download ──
+function downloadCalendarEvent(email) {
+  // Next business day from now
+  const now = new Date();
+  const next = new Date(now);
+  next.setDate(next.getDate() + 1);
+  // Skip weekends
+  if (next.getDay() === 0) next.setDate(next.getDate() + 1);
+  if (next.getDay() === 6) next.setDate(next.getDate() + 2);
+  next.setHours(10, 0, 0, 0);
+
+  const end = new Date(next);
+  end.setMinutes(30);
+
+  const fmt = d => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+
+  const ics = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//S3 Technology//HITL-AI-DLC//EN',
+    'BEGIN:VEVENT',
+    `DTSTART:${fmt(next)}`,
+    `DTEND:${fmt(end)}`,
+    'SUMMARY:S3 Technology Follow-Up',
+    `DESCRIPTION:Don from S3 Technology will reach out about your project.\\nContact: don@s3technology.io`,
+    `ORGANIZER;CN=Don Schminkey:mailto:don@s3technology.io`,
+    email ? `ATTENDEE:mailto:${email}` : '',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].filter(Boolean).join('\r\n');
+
+  const blob = new Blob([ics], { type: 'text/calendar' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 's3-technology-followup.ics';
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ── HIT-29: Recovery email ──

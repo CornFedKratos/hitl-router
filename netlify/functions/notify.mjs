@@ -144,6 +144,30 @@ function buildEmail(type, data) {
         `,
       };
 
+    case 'nurture':
+      if (!data.lead_email) return null;
+      return {
+        from: FROM,
+        to: data.lead_email,
+        replyTo: 'don@s3technology.io',
+        subject: 'Still thinking about your project?',
+        html: `
+          ${data.lead_name ? `<p>Hi ${esc(data.lead_name)},</p>` : '<p>Hi,</p>'}
+          <p>A couple days ago you told us about ${esc(data.problem || 'your project')}.</p>
+          <p>These decisions take time — totally normal.</p>
+          <p>If you're ready to take the next step, your 3 project directions are still saved:</p>
+          ${data.resume_token ? `<p><a href="${SITE_URL}?resume=${data.resume_token}" style="display:inline-block;background:#3B9FE7;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">View Your Directions</a></p>` : ''}
+          <p>Or just reply to this email — I read every one.</p>
+          <p style="margin-top:24px;">
+            <strong>Don Schminkey</strong><br>
+            Founder, S3 Technology<br>
+            <a href="mailto:don@s3technology.io" style="color:#3B9FE7;">don@s3technology.io</a><br>
+            <a href="https://s3technology.io" style="color:#3B9FE7;">s3technology.io</a>
+          </p>
+          <p style="color:#888;font-size:12px;">S3 Technology &middot; HITL-AI-DLC</p>
+        `,
+      };
+
     case 'recovery_link':
       if (!data.lead_email || !data.recovery_token) return null;
       return {
