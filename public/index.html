@@ -4437,7 +4437,7 @@ async function startBuildEngine(sid) {
 
   try {
     // Trigger background build
-    const res = await fetch('/api/build-engine', {
+    const res = await fetch('/api/build-engine-background', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ session_id: sid }),
@@ -4730,7 +4730,7 @@ async function triggerMockups(sid) {
 
   try {
     // Trigger background generation
-    const res = await fetch('/api/mockups', {
+    const res = await fetch('/api/mockups-background', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ session_id: sid }),

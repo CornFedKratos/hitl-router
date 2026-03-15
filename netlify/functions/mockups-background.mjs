@@ -190,6 +190,6 @@ export default async (req) => {
   }
 };
 
-export const config = {
-  path: '/api/mockups',
-};
+// No config.path — background functions use their filename as the route.
+// Accessible at /.netlify/functions/mockups-background
+// Redirected from /api/mockups-background via netlify.toml redirect rule.

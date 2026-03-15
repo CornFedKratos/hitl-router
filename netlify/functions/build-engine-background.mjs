@@ -141,6 +141,4 @@ export default async (req) => {
   }
 };
 
-export const config = {
-  path: '/api/build-engine',
-};
+// No config.path — background functions use their filename as the route.

@@ -5,12 +5,6 @@
 [functions]
   node_bundler = "esbuild"
 
-[functions."mockups"]
-  timeout = 300
-
-[functions."build-engine"]
-  timeout = 300
-
 [functions."prototypes"]
   timeout = 300
 
