@@ -1975,6 +1975,9 @@
       <div class="paywall-fallback">
         Questions? <a href="mailto:don@s3technology.io">Talk to Don</a>
       </div>
+      <div id="paywall-skip" style="display:none;text-align:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+        <button onclick="skipPaymentFromPaywall()" style="background:none;border:1px dashed var(--border);border-radius:6px;padding:6px 14px;color:#FCD34D;font-size:11px;cursor:pointer;font-family:'JetBrains Mono',monospace;">Skip payment (testing)</button>
+      </div>
     </div>
 
     <!-- Build Engine Panel (HIT-39) -->
@@ -4632,9 +4635,40 @@ function showPaywall(sid, data) {
   // Initialize Stripe embedded checkout
   initStripeCheckout(sid, tier);
 
+  // Show skip button if testing mode (URL param or localStorage)
+  const isTesting = new URLSearchParams(location.search).get('testing') === 'true' || localStorage.getItem('hitl_testing') === 'true';
+  if (isTesting) {
+    document.getElementById('paywall-skip').style.display = 'block';
+    localStorage.setItem('hitl_testing', 'true'); // Persist so it survives page reloads
+  }
+
   const panel = document.getElementById('paywall-panel');
   panel.classList.add('visible');
   panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+async function skipPaymentFromPaywall() {
+  if (!sessionId) return;
+  const passphrase = prompt('Admin passphrase:');
+  if (!passphrase) return;
+
+  try {
+    const res = await fetch('/api/admin/skip-payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Key': passphrase },
+      body: JSON.stringify({ session_id: sessionId }),
+    });
+
+    if (res.status === 401) {
+      alert('Wrong passphrase.');
+      return;
+    }
+    if (!res.ok) throw new Error('Failed');
+
+    onPaymentConfirmed(sessionId);
+  } catch (err) {
+    alert('Failed: ' + err.message);
+  }
 }
 
 async function initStripeCheckout(sid, tier) {
