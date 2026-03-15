@@ -89,6 +89,5 @@ export default async (req) => {
 
 // Netlify scheduled function — runs every hour
 export const config = {
-  path: '/api/nurture',
   schedule: '@hourly',
 };
