@@ -86,6 +86,64 @@
     }
     .nav-hamburger:hover { color: var(--text); }
 
+    /* ── User Type Selection ── */
+    .user-type-gate {
+      max-width: 560px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 40px 24px;
+      text-align: center;
+    }
+    .user-type-title {
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+    .user-type-subtitle {
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 32px;
+    }
+    .user-type-card {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 24px;
+      margin-bottom: 12px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+      text-align: left;
+    }
+    .user-type-card:hover {
+      border-color: rgba(59, 159, 231, 0.3);
+      background: var(--surface2);
+      transform: translateY(-1px);
+    }
+    .user-type-icon {
+      font-size: 20px;
+      flex-shrink: 0;
+      width: 28px;
+      text-align: center;
+    }
+    .user-type-card-body {
+      flex: 1;
+    }
+    .user-type-card-label {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+    .user-type-card-desc {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
     /* ── Pre-Chat Options Panel ── */
     .prechat-options {
       max-width: 560px;
@@ -869,6 +927,10 @@
       .phase-connector { width: 16px; }
       .prechat-desc { display: none; }
       .prechat-options { padding: 0 16px; }
+      .user-type-gate { padding: 24px 16px; }
+      .user-type-title { font-size: 18px; }
+      .user-type-card { padding: 14px 16px; }
+      .user-type-card-desc { display: none; }
       .escape-hatch { right: 16px; bottom: 80px; }
       .escape-modal { right: 16px; width: calc(100vw - 32px); bottom: 120px; }
       .prototype-grid { grid-template-columns: 1fr; }
@@ -911,8 +973,28 @@
 
   <!-- Chat Area -->
   <div class="chat-area" id="chat-area">
-    <!-- Starter Prompts -->
-    <div class="starters" id="starters">
+    <!-- User Type Selection Gate -->
+    <div class="user-type-gate" id="user-type-gate">
+      <div class="user-type-title">Welcome — what brings you here today?</div>
+      <div class="user-type-subtitle">This helps us give you the right experience.</div>
+      <div class="user-type-card" onclick="selectUserType('orchestrator')">
+        <div class="user-type-icon">&#9889;</div>
+        <div class="user-type-card-body">
+          <div class="user-type-card-label">I'm starting a project with HITL-AI-DLC</div>
+          <div class="user-type-card-desc">I know the methodology — let's move fast</div>
+        </div>
+      </div>
+      <div class="user-type-card" onclick="selectUserType('lead')">
+        <div class="user-type-icon">&#128075;</div>
+        <div class="user-type-card-body">
+          <div class="user-type-card-label">I'm exploring — someone told me about S3 Technology</div>
+          <div class="user-type-card-desc">I'd like to learn what this can do for me</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Starter Prompts (hidden until user type selected) -->
+    <div class="starters" id="starters" style="display: none;">
       <div class="starters-title">What are you building?</div>
       <div class="starters-subtitle">Describe your project and the AI-DLC framework will guide you through Phase 0 — from idea to Go/No-Go decision.</div>
       <div class="starters-grid">
@@ -1075,6 +1157,7 @@
 <script>
 // ── State ──
 let sessionId = null;
+let userType = null;
 let isStreaming = false;
 let phase0Complete = false;
 let quickbuildMode = false;
@@ -1082,6 +1165,29 @@ let quickbuildContent = null;
 let selectedPrototype = null;
 let prototypeHtmlCache = {};
 let builtSiteHtml = null;
+
+// ── User type selection ──
+function selectUserType(type) {
+  userType = type;
+
+  // Hide gate, show starters
+  document.getElementById('user-type-gate').style.display = 'none';
+  document.getElementById('starters').style.display = '';
+
+  // Orchestrator: store session token stub for HIT-29
+  if (type === 'orchestrator') {
+    // Token written after session is created (on first message)
+  }
+}
+
+// ── Auto-route returning orchestrators (HIT-29 stub) ──
+(function checkReturningUser() {
+  const token = localStorage.getItem('hitl_session_token');
+  if (token) {
+    // HIT-29 builds the full resume flow — for now, just skip the gate
+    selectUserType('orchestrator');
+  }
+})();
 
 // ── Render buffer for smooth streaming ──
 let renderBuffer = '';
@@ -1156,6 +1262,8 @@ document.addEventListener('click', function(e) {
 
 // ── Hide pre-chat options and show escape hatch on first message ──
 function onFirstMessage() {
+  const gate = document.getElementById('user-type-gate');
+  if (gate) gate.style.display = 'none';
   if (prechatOptions) prechatOptions.style.display = 'none';
   escapeHatch.classList.add('visible');
 }
@@ -1477,6 +1585,9 @@ async function sendMessage() {
 
   try {
     const chatBody = { message: text, session_id: sessionId };
+    if (userType && !sessionId) {
+      chatBody.user_type = userType;
+    }
     if (quickbuildMode) {
       chatBody.quickbuild = true;
       chatBody.quickbuild_content = quickbuildContent;
@@ -1518,6 +1629,10 @@ async function sendMessage() {
           if (parsed.type === 'meta') {
             sessionId = parsed.session_id;
             detectedRole = parsed.detected_role;
+            // Store session token for returning user recognition (HIT-29 stub)
+            if (userType === 'orchestrator') {
+              localStorage.setItem('hitl_session_token', sessionId);
+            }
             streamMsg = createStreamingMessage(detectedRole);
             activeStreamMsg = streamMsg;
             activeStreamText = '';

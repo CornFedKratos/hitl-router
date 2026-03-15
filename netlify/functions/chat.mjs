@@ -116,13 +116,28 @@ When responding to the orchestrator's first message after handoff, or to feedbac
 Project content for this Quick Build:
 ${JSON.stringify(session?.quickbuild_content || {}, null, 2)}` : '';
 
+  const userTypeFraming = session?.user_type === 'lead'
+    ? `\n\nIMPORTANT — User context:
+This visitor is exploring S3 Technology for the first time. They may not know what HITL-AI-DLC is.
+- Use a warm, explanatory tone — define methodology terms when you first use them
+- Frame Phase 0 as "helping them figure out if their idea is buildable" not as a methodology step
+- Keep jargon minimal — say "project plan" not "execution brief", "feasibility check" not "Phase 0 gate"
+- If they seem confused, offer to explain how the process works before diving in`
+    : session?.user_type === 'orchestrator'
+    ? `\n\nIMPORTANT — User context:
+This is an orchestrator — they know HITL-AI-DLC and came here to start a project.
+- Be concise and direct — skip methodology explanations
+- Use standard AI-DLC terminology (phases, tiers, roles)
+- Move efficiently through Phase 0 — they know the drill`
+    : '';
+
   return `You are the ${ROLE_NAMES[role]} in the HITL-AI-DLC methodology.
 
 ${skillContent}
 
 You are operating through a web interface called the HITL-AI-DLC Agent Router.
 The orchestrator may be new to the methodology — be helpful, clear, and specific.
-
+${userTypeFraming}
 Project context:
 - Problem: ${session?.problem || 'not yet defined'}
 - Solution: ${session?.solution || 'not yet defined'}
@@ -134,10 +149,15 @@ ${phase0Instructions}${cdoQuickBuildInstructions}`;
 
 // ── Session management ──
 
-async function createSession() {
+async function createSession(userType) {
+  const row = {};
+  if (userType === 'orchestrator' || userType === 'lead') {
+    row.user_type = userType;
+  }
+
   const { data, error } = await supabase
     .from('sessions')
-    .insert({})
+    .insert(row)
     .select('id')
     .single();
 
@@ -240,7 +260,7 @@ export default async (req) => {
   try {
     const body = await req.json();
     const { message } = body;
-    let { session_id: sessionId, quickbuild: clientQuickbuild, quickbuild_content: clientQbContent } = body;
+    let { session_id: sessionId, quickbuild: clientQuickbuild, quickbuild_content: clientQbContent, user_type: userType } = body;
 
     if (!message || typeof message !== 'string') {
       return new Response(JSON.stringify({ error: 'Message is required' }), {
@@ -252,7 +272,7 @@ export default async (req) => {
     // 1. Create or fetch session
     let session;
     if (!sessionId) {
-      sessionId = await createSession();
+      sessionId = await createSession(userType);
       session = await getSession(sessionId);
     } else {
       session = await getSession(sessionId);
