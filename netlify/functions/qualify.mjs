@@ -24,7 +24,7 @@ export default async (req) => {
   }
 
   try {
-    const { session_id, ai_qualified, human_led, partial_answers, mockup_direction_selected, launcher_fallback, fallback_option_selected, artifacts_downloaded, maintenance_inquiry, upsell_clicked, paywall_abandoned, support_escalation, mockup_failed, design_intent, muse_answers } = await req.json();
+    const { session_id, ai_qualified, human_led, partial_answers, mockup_direction_selected, launcher_fallback, fallback_option_selected, artifacts_downloaded, maintenance_inquiry, upsell_clicked, paywall_abandoned, support_escalation, mockup_failed, design_intent, muse_answers, build_preview_viewed } = await req.json();
 
     if (!session_id) {
       return new Response(JSON.stringify({ error: 'session_id required' }), {
@@ -48,6 +48,7 @@ export default async (req) => {
     if (mockup_failed !== undefined) update.mockup_failed = mockup_failed;
     if (design_intent) update.design_intent = design_intent;
     if (muse_answers) update.muse_answers = muse_answers;
+    if (build_preview_viewed !== undefined) update.build_preview_viewed = build_preview_viewed;
 
     const { error } = await supabase
       .from('sessions')

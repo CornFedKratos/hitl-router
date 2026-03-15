@@ -755,6 +755,90 @@
     .paywall-fallback a { color: var(--blue); text-decoration: none; cursor: pointer; }
 
     /* Artifact delivery */
+    /* ── Site preview (HIT-63) ── */
+    @keyframes revealSite {
+      from { opacity: 0; transform: translateY(20px) scale(0.98); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .site-preview {
+      animation: revealSite 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 16px;
+      background: white;
+    }
+    .site-preview iframe {
+      width: 100%;
+      height: 600px;
+      border: none;
+      display: block;
+      transition: width 0.3s ease;
+    }
+    .site-preview.mobile-view iframe {
+      width: 390px;
+      margin: 0 auto;
+      display: block;
+    }
+    .preview-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .preview-device-toggle {
+      display: flex;
+      gap: 4px;
+    }
+    .preview-device-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 4px 10px;
+      font-size: 11px;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .preview-device-btn.active { border-color: var(--blue); color: var(--blue); }
+    .preview-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+    .preview-action {
+      padding: 10px 24px;
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+    }
+    .preview-action-primary {
+      background: #064E3B;
+      color: #6EE7B7;
+      border: 1px solid rgba(110, 231, 183, 0.3);
+    }
+    .preview-action-primary:hover { background: #065F46; border-color: #6EE7B7; transform: translateY(-1px); }
+    .preview-action-secondary {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .preview-action-secondary:hover { border-color: var(--blue); color: var(--text); }
+    .preview-carl-message {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.6;
+      margin-bottom: 16px;
+      font-style: italic;
+    }
+
     .artifact-panel {
       display: none;
       max-width: 560px;
@@ -5072,7 +5156,16 @@ function onPaymentConfirmed(sid) {
   }
 })();
 
+let buildPollAbort = null; // Track active polling for cleanup on refinement
+
 async function startBuildEngine(sid) {
+  // HIT-63: Clean up any previous polling interval (critical for refinement loops)
+  if (buildPollAbort) {
+    buildPollAbort.abort = true;
+  }
+  const pollToken = { abort: false };
+  buildPollAbort = pollToken;
+
   const panel = document.getElementById('build-panel');
   const output = document.getElementById('build-output');
   const progress = document.getElementById('build-progress');
@@ -5085,7 +5178,23 @@ async function startBuildEngine(sid) {
   progress.innerHTML = ROLES.map(() => '<div class="build-progress-step"></div>').join('');
 
   buildOutputs = {};
-  startLoadingMessages('build');
+
+  // HIT-63: Content-aware loading messages
+  const pa = popupAnswers || {};
+  const bName = pa.business_name || pa.problem || 'your project';
+  const bFeeling = pa.feeling || '';
+  const bAudience = pa.audience || '';
+  const contentBuildMsgs = [
+    `Reading everything you shared about ${bName}...`,
+    bFeeling ? `Translating your "${bFeeling}" direction into visual language...` : 'Setting the visual direction...',
+    bAudience ? `Styling for your ${bAudience} audience...` : 'Building the layout...',
+    'Adding your services with the right hierarchy...',
+    'Building the hero section...',
+    'Finishing your contact form and footer...',
+    'Almost done \u2014 final polish...',
+  ];
+  LOADING_MESSAGES._content_build = contentBuildMsgs;
+  startLoadingMessages('_content_build');
 
   // Show loading in output area
   output.innerHTML = '<div id="build-loading-msg" style="text-align:center;padding:20px;color:var(--muted);font-size:14px;transition:opacity 0.3s;"></div>';
@@ -5110,6 +5219,12 @@ async function startBuildEngine(sid) {
     let lastPhase = '';
     for (let i = 0; i < 200; i++) {
       await new Promise(r => setTimeout(r, 3000));
+
+      // HIT-63: Abort if a refinement re-triggered a new build
+      if (pollToken.abort) {
+        stopLoadingMessages();
+        return;
+      }
 
       const statusRes = await fetch(`/api/build-status?session_id=${encodeURIComponent(sid)}`);
       if (!statusRes.ok) continue;
@@ -5162,51 +5277,191 @@ async function startBuildEngine(sid) {
   }
 }
 
+let currentRefinementCount = 0;
+const MAX_REFINEMENTS = 2;
+
 function showArtifactDelivery(sid, tier, outputs) {
   const panel = document.getElementById('artifact-panel');
-  const subtitle = document.getElementById('artifact-subtitle');
-  const value = document.getElementById('artifact-value');
-
   const isTier1 = tier === 'quick_build';
-  subtitle.textContent = isTier1
-    ? 'Your website and project summary are ready to download.'
-    : 'Your spec package is ready to download.';
 
-  // Value reinforcement — agency comparison lives here now (moved from paywall in HIT-57)
+  // Store outputs for download
+  window._buildOutputs = outputs;
+  window._buildTier = tier;
+
+  const htmlContent = outputs.CDO || outputs.cdo || '';
+  const pa = popupAnswers || {};
+  const businessName = pa.business_name || pa.problem || 'your project';
+
+  // Carl's reveal message
+  const carlMessage = isTier1 && htmlContent
+    ? `Here\u2019s your site for ${escapeHtml(businessName)}. Scroll through it \u2014 see how it feels.`
+    : `Your spec package for ${escapeHtml(businessName)} is ready. Take a look at what we built.`;
+
+  let previewHtml = '';
+
+  if (isTier1 && htmlContent) {
+    // Full-width iframe preview with reveal animation
+    previewHtml = `
+      <div class="preview-carl-message"><span class="role-badge CDO">CDO</span> ${carlMessage}</div>
+      <div class="preview-controls">
+        <span>Scroll to explore your site \u2193</span>
+        <div class="preview-device-toggle">
+          <button class="preview-device-btn active" onclick="setPreviewDevice('desktop', this)">Desktop</button>
+          <button class="preview-device-btn" onclick="setPreviewDevice('mobile', this)">Mobile</button>
+        </div>
+      </div>
+      <div class="site-preview" id="site-preview">
+        <iframe sandbox="allow-scripts" srcdoc="${htmlContent.replace(/"/g, '&quot;')}"></iframe>
+      </div>
+      <div class="preview-actions">
+        <button class="preview-action preview-action-primary" onclick="downloadArtifacts()">Download my site</button>
+        ${currentRefinementCount < MAX_REFINEMENTS
+          ? '<button class="preview-action preview-action-secondary" onclick="requestRefinement(\'' + sid + '\')">I want to change something</button>'
+          : ''}
+        <a class="preview-action preview-action-secondary" href="mailto:don@s3technology.io?subject=${encodeURIComponent('Get my site live — ' + businessName)}">Get this live</a>
+      </div>
+    `;
+  } else {
+    previewHtml = `
+      <div class="preview-carl-message">${carlMessage}</div>
+      <div class="preview-actions">
+        <button class="preview-action preview-action-primary" onclick="downloadArtifacts()">Download your project</button>
+        <a class="preview-action preview-action-secondary" href="mailto:don@s3technology.io">Get this live</a>
+      </div>
+    `;
+  }
+
+  // Value reinforcement
+  let valueHtml = '';
   if (pricingData) {
     const p = pricingData.pricing;
-    value.innerHTML = `
-      <strong>You just got ${isTier1 ? 'a custom website + project summary' : 'a full PRD, feature specs, glossary, risk log, and roadmap'}</strong> for ${p.ai_build_display}.
-      <br>A boutique agency charges ${p.agency_low_display}\u2013${p.agency_high_display} for this.
-      <br><span style="color:#6EE7B7;font-weight:600;">You saved ~${p.savings_percentage}%.</span>
-      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:13px;">
-        <strong>Want Don\u2019s team to take it further?</strong> Human-assisted engagements start at ${p.human_build_display}.
-        <br><span style="font-size:12px;color:#555;">$225/hr is a starting point \u2014 scope and budget are always flexible.</span>
+    valueHtml = `
+      <div class="artifact-value">
+        <strong>You just got ${isTier1 ? 'a custom website + project summary' : 'a full PRD, feature specs, glossary, risk log, and roadmap'}</strong> for ${p.ai_build_display}.
+        <br>A boutique agency charges ${p.agency_low_display}\u2013${p.agency_high_display} for this.
+        <br><span style="color:#6EE7B7;font-weight:600;">You saved ~${p.savings_percentage}%.</span>
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:13px;">
+          <strong>Want Don\u2019s team to take it further?</strong> Human-assisted engagements start at ${p.human_build_display}.
+          <br><span style="font-size:12px;color:#555;">$225/hr is a starting point \u2014 scope and budget are always flexible.</span>
+        </div>
       </div>
     `;
   }
 
   // Maintenance upsell
   const mConfig = isTier1 ? MAINTENANCE_CONFIG.tier1 : MAINTENANCE_CONFIG.tier2;
-  document.getElementById('maintenance-desc').textContent = mConfig.desc;
-  document.getElementById('maintenance-features').innerHTML = mConfig.features.map(f => `<li>${f}</li>`).join('');
-  document.getElementById('maintenance-price').textContent = mConfig.price;
 
-  // Store outputs for download
-  window._buildOutputs = outputs;
-  window._buildTier = tier;
+  panel.innerHTML = `
+    <div class="artifact-title">${isTier1 ? 'Your website is ready.' : 'Your spec package is ready.'}</div>
+    ${previewHtml}
+    ${valueHtml}
+    <div class="maintenance-panel">
+      <div class="maintenance-title">${mConfig.label || 'Want us to take care of it?'}</div>
+      <div class="maintenance-desc">${mConfig.desc}</div>
+      <ul class="maintenance-features">${mConfig.features.map(f => '<li>' + f + '</li>').join('')}</ul>
+      <div class="maintenance-price">${mConfig.price}</div>
+      <button class="maintenance-cta" onclick="requestMaintenance()">I\u2019m interested</button>
+    </div>
+  `;
 
   panel.classList.add('visible');
-  panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-  // Track artifacts downloaded flag when they click
+  // Track preview viewed
   if (sid) {
     fetch('/api/qualify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id: sid, artifacts_downloaded: true }),
+      body: JSON.stringify({ session_id: sid, build_preview_viewed: true }),
     }).catch(() => {});
   }
+}
+
+function setPreviewDevice(device, btn) {
+  const preview = document.getElementById('site-preview');
+  if (!preview) return;
+  if (device === 'mobile') {
+    preview.classList.add('mobile-view');
+  } else {
+    preview.classList.remove('mobile-view');
+  }
+  document.querySelectorAll('.preview-device-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+async function requestRefinement(sid) {
+  if (currentRefinementCount >= MAX_REFINEMENTS) return;
+
+  // Carl asks what to change
+  const overlay = document.getElementById('popup-overlay');
+  const content = document.getElementById('popup-content');
+  const progress = document.getElementById('popup-progress');
+  const escape = overlay.querySelector('.popup-escape');
+
+  progress.style.display = 'none';
+  escape.style.display = 'none';
+
+  const carlClose = currentRefinementCount === MAX_REFINEMENTS - 1
+    ? '<div style="font-size:12px;color:var(--muted);margin-top:8px;">This will be the final refinement pass.</div>'
+    : '';
+
+  content.innerHTML = `
+    <div style="font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:8px;">Carl</div>
+    <div class="popup-question">What section feels off?</div>
+    <div class="popup-hint">The hero? The services? The colors? Or something else?</div>
+    <textarea class="popup-textarea" id="refinement-feedback" placeholder="The colors feel too cold, I want warmer tones... / The hero should emphasize trust more..."></textarea>
+    ${carlClose}
+    <div class="popup-actions">
+      <button class="popup-back" onclick="cancelRefinement()">Never mind</button>
+      <button class="popup-next" onclick="submitRefinement('${sid}')">Rebuild with changes</button>
+    </div>
+  `;
+
+  overlay.classList.add('visible');
+  setTimeout(() => document.getElementById('refinement-feedback')?.focus(), 100);
+}
+
+function cancelRefinement() {
+  const overlay = document.getElementById('popup-overlay');
+  const progress = document.getElementById('popup-progress');
+  const escape = overlay.querySelector('.popup-escape');
+  overlay.classList.remove('visible');
+  progress.style.display = '';
+  escape.style.display = '';
+}
+
+async function submitRefinement(sid) {
+  const feedback = document.getElementById('refinement-feedback')?.value.trim();
+  if (!feedback) return;
+
+  currentRefinementCount++;
+
+  // Close overlay
+  cancelRefinement();
+
+  // Hide artifact panel
+  document.getElementById('artifact-panel').classList.remove('visible');
+
+  // Update design_intent with refinement feedback
+  const currentIntent = popupAnswers._design_intent || '';
+  const updatedIntent = currentIntent
+    ? `${currentIntent}\n\nREFINEMENT REQUEST (pass ${currentRefinementCount}): ${feedback}`
+    : `REFINEMENT REQUEST: ${feedback}`;
+
+  popupAnswers._design_intent = updatedIntent;
+
+  // Write to Supabase
+  await fetch('/api/qualify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      session_id: sid,
+      design_intent: updatedIntent,
+    }),
+  }).catch(() => {});
+
+  // Re-trigger build — this is the critical path for polling cleanup
+  startBuildEngine(sid);
 }
 
 async function downloadArtifacts() {
