@@ -5,6 +5,9 @@
 [functions]
   node_bundler = "esbuild"
 
+[functions."build-engine"]
+  timeout = 300
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"

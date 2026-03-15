@@ -675,6 +675,143 @@
       font-size: 14px;
     }
 
+    /* ── Build Engine (HIT-39) ── */
+    .build-panel {
+      display: none;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 24px;
+      animation: fadeIn 0.4s ease;
+    }
+    .build-panel.visible { display: block; }
+    .build-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .build-progress {
+      display: flex;
+      gap: 4px;
+      flex: 1;
+    }
+    .build-progress-step {
+      flex: 1;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--border);
+      transition: background 0.4s;
+    }
+    .build-progress-step.done { background: #6EE7B7; }
+    .build-progress-step.active { background: var(--blue); }
+    .build-step-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .build-output {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      max-height: 500px;
+      overflow-y: auto;
+      margin-bottom: 16px;
+    }
+    .build-handoff {
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 12px;
+      font-size: 13px;
+      color: var(--muted);
+      font-style: italic;
+    }
+    .build-agent-output {
+      font-size: 13px;
+      line-height: 1.7;
+      color: var(--text);
+    }
+
+    /* Paywall */
+    .paywall-panel {
+      display: none;
+      max-width: 520px;
+      margin: 24px auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px;
+      animation: slideIn 0.4s ease;
+    }
+    .paywall-panel.visible { display: block; }
+    .paywall-title { font-size: 18px; font-weight: 600; margin-bottom: 16px; }
+    .paywall-price { font-size: 32px; font-weight: 700; color: var(--blue); margin-bottom: 4px; }
+    .paywall-comparison { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+    .paywall-savings { font-size: 14px; font-weight: 600; color: #6EE7B7; margin-bottom: 20px; }
+    .paywall-human { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 20px; font-size: 13px; color: var(--muted); }
+    .paywall-checkout { min-height: 300px; margin-bottom: 16px; }
+    .paywall-fallback { text-align: center; font-size: 13px; color: var(--muted); }
+    .paywall-fallback a { color: var(--blue); text-decoration: none; cursor: pointer; }
+
+    /* Artifact delivery */
+    .artifact-panel {
+      display: none;
+      max-width: 560px;
+      margin: 24px auto;
+      text-align: center;
+      animation: slideIn 0.4s ease;
+    }
+    .artifact-panel.visible { display: block; }
+    .artifact-title { font-size: 20px; font-weight: 600; margin-bottom: 8px; }
+    .artifact-subtitle { font-size: 14px; color: var(--muted); margin-bottom: 20px; }
+    .artifact-download {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #064E3B;
+      color: #6EE7B7;
+      border: 1px solid rgba(110, 231, 183, 0.3);
+      border-radius: 10px;
+      padding: 14px 28px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+      border: none;
+    }
+    .artifact-download:hover { background: #065F46; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(110, 231, 183, 0.2); }
+    .artifact-value { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin: 20px 0; font-size: 13px; color: var(--muted); text-align: left; }
+    .artifact-value strong { color: var(--text); }
+
+    /* Maintenance upsell */
+    .maintenance-panel {
+      max-width: 520px;
+      margin: 20px auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+    }
+    .maintenance-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+    .maintenance-desc { font-size: 13px; color: var(--muted); margin-bottom: 16px; line-height: 1.6; }
+    .maintenance-features { list-style: none; text-align: left; margin-bottom: 16px; }
+    .maintenance-features li { font-size: 13px; color: var(--muted); padding: 4px 0; }
+    .maintenance-features li::before { content: '\2713 '; color: #6EE7B7; }
+    .maintenance-price { font-size: 14px; color: var(--text); margin-bottom: 16px; }
+    .maintenance-cta {
+      background: var(--blue);
+      border: none;
+      border-radius: 8px;
+      padding: 10px 24px;
+      color: white;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .maintenance-cta:hover { background: #2E8BC4; }
+
     /* ── Social Proof Panel (HIT-34) ── */
     .social-proof {
       display: none;
@@ -1651,6 +1788,43 @@
         <div class="popup-escape">
           <a onclick="switchToChat()">Switch to chat &rarr;</a>
         </div>
+      </div>
+    </div>
+
+    <!-- Paywall Panel (HIT-39) -->
+    <div class="paywall-panel" id="paywall-panel">
+      <div class="paywall-title">Here's what you're getting and what it costs.</div>
+      <div class="paywall-price" id="paywall-price"></div>
+      <div class="paywall-comparison" id="paywall-comparison"></div>
+      <div class="paywall-savings" id="paywall-savings"></div>
+      <div class="paywall-human" id="paywall-human"></div>
+      <div class="paywall-checkout" id="paywall-checkout"></div>
+      <div class="paywall-fallback">
+        Questions? <a href="mailto:don@s3technology.io">Talk to Don</a>
+      </div>
+    </div>
+
+    <!-- Build Engine Panel (HIT-39) -->
+    <div class="build-panel" id="build-panel">
+      <div class="build-header">
+        <span class="build-step-label" id="build-step-label">Starting build...</span>
+        <div class="build-progress" id="build-progress"></div>
+      </div>
+      <div class="build-output" id="build-output"></div>
+    </div>
+
+    <!-- Artifact Delivery Panel (HIT-39) -->
+    <div class="artifact-panel" id="artifact-panel">
+      <div class="artifact-title">Your project is ready.</div>
+      <div class="artifact-subtitle" id="artifact-subtitle"></div>
+      <button class="artifact-download" id="artifact-download" onclick="downloadArtifacts()">Download your project</button>
+      <div class="artifact-value" id="artifact-value"></div>
+      <div class="maintenance-panel" id="maintenance-panel">
+        <div class="maintenance-title">Want us to take care of it?</div>
+        <div class="maintenance-desc" id="maintenance-desc"></div>
+        <ul class="maintenance-features" id="maintenance-features"></ul>
+        <div class="maintenance-price" id="maintenance-price"></div>
+        <button class="maintenance-cta" onclick="requestMaintenance()">I'm interested</button>
       </div>
     </div>
 
@@ -3362,6 +3536,345 @@ function copyText(text) {
   }).catch(() => {});
 }
 
+// ── HIT-39/40: Build engine + pricing ──
+const MAINTENANCE_CONFIG = {
+  tier1: {
+    label: 'Website Maintenance',
+    desc: 'We host your site, handle updates, connect your forms, and keep everything running.',
+    features: ['Custom domain setup', 'Form handling (email delivery)', 'Monthly content updates', 'SSL & uptime monitoring', 'Google Analytics setup'],
+    price: 'Starting at $99/mo',
+  },
+  tier2: {
+    label: 'Ongoing Development Support',
+    desc: 'Our team picks up exactly where the spec left off. Design, build, and ship.',
+    features: ['Priority development hours', 'Architecture guidance', 'Code review & quality gates', 'Monthly progress reviews', 'Direct Slack access to Don'],
+    price: 'Starting at $2,500/mo',
+  },
+};
+
+let buildOutputs = {};
+let pricingData = null;
+
+// Entry point: called from mockupRefine or mockupContact when tier 1/2 lead selects a direction
+async function startBuildFlow(sid) {
+  // Step 1: Get pricing
+  try {
+    const res = await fetch('/api/pricing', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sid }),
+    });
+    if (!res.ok) throw new Error('Pricing failed');
+    pricingData = await res.json();
+
+    if (pricingData.pricing.exceeds_ceiling) {
+      // Route to Don — project too complex for self-serve
+      showFullEngagementHandoff(sid);
+      return;
+    }
+
+    showPaywall(sid, pricingData);
+  } catch (err) {
+    console.error('Build flow failed:', err);
+  }
+}
+
+function showPaywall(sid, data) {
+  const p = data.pricing;
+
+  document.getElementById('paywall-price').textContent = p.ai_build_display;
+  document.getElementById('paywall-comparison').textContent =
+    `Boutique agency equivalent: ${p.agency_low_display}\u2013${p.agency_high_display}`;
+  document.getElementById('paywall-savings').textContent =
+    `You\u2019re saving ~${p.savings_percentage}%`;
+  document.getElementById('paywall-human').innerHTML =
+    `<strong>Want Don involved?</strong> Human-assisted engagements start at ${p.human_build_display}. ` +
+    `<a href="mailto:don@s3technology.io" style="color:var(--blue);text-decoration:none;">Contact Don</a> to discuss.` +
+    `<div style="margin-top:6px;font-size:12px;">$225/hr is a starting point \u2014 scope and budget are always flexible.</div>`;
+
+  // Initialize Stripe embedded checkout
+  initStripeCheckout(sid, data.tier);
+
+  const panel = document.getElementById('paywall-panel');
+  panel.classList.add('visible');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+async function initStripeCheckout(sid, tier) {
+  const checkoutEl = document.getElementById('paywall-checkout');
+
+  try {
+    const res = await fetch('/api/create-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sid, tier }),
+    });
+
+    if (!res.ok) throw new Error('Checkout creation failed');
+    const { clientSecret } = await res.json();
+
+    // Load Stripe.js dynamically
+    if (!window.Stripe) {
+      const script = document.createElement('script');
+      script.src = 'https://js.stripe.com/v3/';
+      document.head.appendChild(script);
+      await new Promise(r => script.onload = r);
+    }
+
+    const stripeKey = document.querySelector('meta[name="stripe-key"]')?.content || '';
+    if (!stripeKey) {
+      checkoutEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);">Payment system loading... <a href="mailto:don@s3technology.io" style="color:var(--blue);">Contact Don</a> if this persists.</div>';
+      return;
+    }
+
+    const stripe = Stripe(stripeKey);
+    const checkout = await stripe.initEmbeddedCheckout({ clientSecret });
+    checkout.mount('#paywall-checkout');
+
+    // Poll for payment confirmation
+    pollPaymentStatus(sid);
+  } catch (err) {
+    checkoutEl.innerHTML = `<div style="text-align:center;padding:20px;color:var(--muted);">
+      Unable to load payment. <a href="mailto:don@s3technology.io" style="color:var(--blue);">Contact Don directly</a> to get started.
+    </div>`;
+  }
+}
+
+async function pollPaymentStatus(sid) {
+  const check = async () => {
+    try {
+      const res = await fetch(`/api/session?token=${encodeURIComponent(sid)}`);
+      if (!res.ok) return false;
+      const { sessions } = await res.json();
+      const s = sessions?.[0];
+      return s?.payment_confirmed === true;
+    } catch { return false; }
+  };
+
+  // Check every 3 seconds for up to 5 minutes
+  for (let i = 0; i < 100; i++) {
+    await new Promise(r => setTimeout(r, 3000));
+    if (await check()) {
+      onPaymentConfirmed(sid);
+      return;
+    }
+  }
+}
+
+function onPaymentConfirmed(sid) {
+  document.getElementById('paywall-panel').classList.remove('visible');
+  startBuildEngine(sid);
+}
+
+// Also check URL params for return from Stripe redirect (fallback)
+(function checkPaymentReturn() {
+  const params = new URLSearchParams(location.search);
+  if (params.get('payment_success') === 'true' && params.get('session_id')) {
+    const sid = params.get('session_id');
+    sessionId = sid;
+    // Clean URL
+    history.replaceState({}, '', location.pathname);
+    startBuildEngine(sid);
+  }
+})();
+
+async function startBuildEngine(sid) {
+  const panel = document.getElementById('build-panel');
+  const output = document.getElementById('build-output');
+  const progress = document.getElementById('build-progress');
+  const stepLabel = document.getElementById('build-step-label');
+
+  panel.classList.add('visible');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // Initialize progress bar
+  const ROLES = ['CPO', 'CTO', 'CDO', 'CQO', 'CIO', 'CSO'];
+  progress.innerHTML = ROLES.map(() => '<div class="build-progress-step"></div>').join('');
+
+  buildOutputs = {};
+
+  try {
+    const res = await fetch('/api/build-engine', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sid }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      output.innerHTML = `<div style="color:#F87171;">Build failed: ${err.error || 'Unknown error'}. <a href="mailto:don@s3technology.io" style="color:var(--blue);">Contact Don</a></div>`;
+      return;
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let currentRole = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const parsed = JSON.parse(line.slice(6));
+
+          if (parsed.type === 'handoff') {
+            currentRole = parsed.role;
+            stepLabel.textContent = `${parsed.name} (${parsed.step}/${parsed.total})`;
+
+            // Update progress
+            const steps = progress.querySelectorAll('.build-progress-step');
+            steps.forEach((s, i) => {
+              if (i < parsed.step - 1) s.className = 'build-progress-step done';
+              else if (i === parsed.step - 1) s.className = 'build-progress-step active';
+            });
+
+            // Add handoff marker
+            output.innerHTML += `<div class="build-handoff"><span class="role-badge ${parsed.role}">${parsed.role}</span> ${parsed.name} is working...</div>`;
+            output.innerHTML += `<div class="build-agent-output" id="build-out-${parsed.role}"></div>`;
+            output.scrollTop = output.scrollHeight;
+
+          } else if (parsed.type === 'text') {
+            const el = document.getElementById(`build-out-${parsed.role}`);
+            if (el) {
+              buildOutputs[parsed.role] = (buildOutputs[parsed.role] || '') + parsed.text;
+              el.innerHTML = renderMarkdown(buildOutputs[parsed.role]);
+              output.scrollTop = output.scrollHeight;
+            }
+
+          } else if (parsed.type === 'done') {
+            stepLabel.textContent = 'Build complete';
+            progress.querySelectorAll('.build-progress-step').forEach(s => s.className = 'build-progress-step done');
+            showArtifactDelivery(sid, parsed.tier, parsed.outputs);
+
+          } else if (parsed.type === 'error' || parsed.type === 'agent_error') {
+            output.innerHTML += `<div style="color:#F87171;padding:8px 0;">[${parsed.role || 'System'}] Error: ${parsed.error}</div>`;
+          }
+        } catch {}
+      }
+    }
+  } catch (err) {
+    output.innerHTML += `<div style="color:#F87171;">Connection lost. <a href="mailto:don@s3technology.io" style="color:var(--blue);">Contact Don</a></div>`;
+  }
+}
+
+function showArtifactDelivery(sid, tier, outputs) {
+  const panel = document.getElementById('artifact-panel');
+  const subtitle = document.getElementById('artifact-subtitle');
+  const value = document.getElementById('artifact-value');
+
+  const isTier1 = tier === 'quick_build';
+  subtitle.textContent = isTier1
+    ? 'Your website and project summary are ready to download.'
+    : 'Your spec package is ready to download.';
+
+  // Value reinforcement
+  if (pricingData) {
+    const p = pricingData.pricing;
+    value.innerHTML = `<strong>You just got ${isTier1 ? 'a custom website + project summary' : 'a full PRD, feature specs, glossary, risk log, and roadmap'}</strong> for ${p.ai_build_display}.<br>A boutique agency charges ${p.agency_low_display}\u2013${p.agency_high_display} for this.`;
+  }
+
+  // Maintenance upsell
+  const mConfig = isTier1 ? MAINTENANCE_CONFIG.tier1 : MAINTENANCE_CONFIG.tier2;
+  document.getElementById('maintenance-desc').textContent = mConfig.desc;
+  document.getElementById('maintenance-features').innerHTML = mConfig.features.map(f => `<li>${f}</li>`).join('');
+  document.getElementById('maintenance-price').textContent = mConfig.price;
+
+  // Store outputs for download
+  window._buildOutputs = outputs;
+  window._buildTier = tier;
+
+  panel.classList.add('visible');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  // Track artifacts downloaded flag when they click
+  if (sid) {
+    fetch('/api/qualify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sid, artifacts_downloaded: true }),
+    }).catch(() => {});
+  }
+}
+
+function downloadArtifacts() {
+  const outputs = window._buildOutputs || buildOutputs;
+  const tier = window._buildTier || 'quick_build';
+
+  // Build file list
+  const files = [];
+
+  if (tier === 'quick_build') {
+    if (outputs.cdo || outputs.CDO) files.push({ name: 'website.html', content: outputs.cdo || outputs.CDO });
+    if (outputs.cio || outputs.CIO) files.push({ name: 'project-summary.md', content: outputs.cio || outputs.CIO });
+  } else {
+    if (outputs.cto || outputs.CTO) files.push({ name: 'technical-scope.md', content: outputs.cto || outputs.CTO });
+    if (outputs.cdo || outputs.CDO) files.push({ name: 'design-direction.md', content: outputs.cdo || outputs.CDO });
+    if (outputs.cio || outputs.CIO) files.push({ name: 'spec-package.md', content: outputs.cio || outputs.CIO });
+    if (outputs.cqo || outputs.CQO) files.push({ name: 'quality-review.md', content: outputs.cqo || outputs.CQO });
+    if (outputs.cso || outputs.CSO) files.push({ name: 'security-review.md', content: outputs.cso || outputs.CSO });
+  }
+
+  if (outputs.cpo || outputs.CPO) files.push({ name: 'project-brief.md', content: outputs.cpo || outputs.CPO });
+
+  if (files.length === 1) {
+    // Single file — download directly
+    const f = files[0];
+    const blob = new Blob([f.content], { type: f.name.endsWith('.html') ? 'text/html' : 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = f.name; a.click();
+    URL.revokeObjectURL(url);
+  } else {
+    // Multiple files — create a simple combined markdown download
+    const combined = files.map(f => `# ${f.name}\n\n${f.content}`).join('\n\n---\n\n');
+    const blob = new Blob([combined], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'project-package.md'; a.click();
+    URL.revokeObjectURL(url);
+  }
+}
+
+function requestMaintenance() {
+  if (sessionId) {
+    fetch('/api/qualify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, maintenance_inquiry: true }),
+    }).catch(() => {});
+  }
+
+  // Show contact form
+  const panel = document.getElementById('human-led-handoff');
+  const content = document.getElementById('human-led-handoff-content');
+  const mConfig = window._buildTier === 'quick_build' ? MAINTENANCE_CONFIG.tier1 : MAINTENANCE_CONFIG.tier2;
+
+  content.innerHTML = `
+    <div class="human-led-handoff-title">${mConfig.label}</div>
+    <div class="human-led-handoff-desc">${mConfig.desc} ${mConfig.price}.</div>
+    <form class="human-led-form" id="human-led-form" onsubmit="submitHumanLedForm(event)">
+      <input type="text" id="hl-name" placeholder="Your name" value="${escapeHtml(popupLeadData?.name || '')}">
+      <input type="email" id="hl-email" placeholder="Your email" value="${escapeHtml(popupLeadData?.email || '')}">
+      <input type="text" id="hl-problem" value="${escapeHtml(popupAnswers?.problem || '')}" readonly>
+      <textarea id="hl-message" placeholder="What would you like help with? (optional)"></textarea>
+      <button type="submit" class="human-led-submit" id="hl-submit">Get Started</button>
+    </form>
+    <div class="human-led-fallback">
+      Or email directly: <a href="mailto:don@s3technology.io">don@s3technology.io</a>
+    </div>
+  `;
+
+  panel.classList.add('visible');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
 // ── HIT-28: Mockup directions ──
 let mockupData = null;
 let selectedMockupDirection = null;
@@ -3517,8 +4030,14 @@ function selectMockupDirection(dirId) {
 
 function mockupRefine() {
   if (!selectedMockupDirection) return;
-  // For now, route to contact — refinement loop is a future enhancement
-  mockupContact();
+  const tier = mockupData?.tier;
+  if ((tier === 'quick_build' || tier === 'launchpad') && userType === 'lead') {
+    // HIT-39: Route to build engine with paywall
+    document.getElementById('mockup-panel').classList.remove('visible');
+    startBuildFlow(sessionId);
+  } else {
+    mockupContact();
+  }
 }
 
 function mockupContact() {

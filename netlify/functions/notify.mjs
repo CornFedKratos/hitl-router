@@ -144,6 +144,41 @@ function buildEmail(type, data) {
         `,
       };
 
+    case 'payment_received':
+      return {
+        from: FROM,
+        to: ADMIN_EMAIL,
+        subject: `Payment received: ${data.lead_name || data.lead_email || 'Unknown'} — $${Math.round((data.amount || 0) / 100)}`,
+        html: `
+          <h2>Payment Received</h2>
+          <p><strong>Name:</strong> ${esc(data.lead_name || '—')}</p>
+          <p><strong>Email:</strong> ${esc(data.lead_email || '—')}</p>
+          <p><strong>Amount:</strong> $${Math.round((data.amount || 0) / 100)}</p>
+          <p><strong>Tier:</strong> ${esc(data.tier || '—')}</p>
+          <p><strong>Problem:</strong> ${esc(data.problem || '—')}</p>
+          <p><strong>Session:</strong> ${esc(data.session_id || '—')}</p>
+          <p>Build engine is running. Artifacts will be delivered to the lead automatically.</p>
+          <p><a href="${SITE_URL}/admin">Open Lead Dashboard</a></p>
+        `,
+      };
+
+    case 'build_complete':
+      return {
+        from: FROM,
+        to: ADMIN_EMAIL,
+        subject: `Build complete: ${data.lead_name || data.lead_email || 'Unknown'} — ${data.tier || 'unknown tier'}`,
+        html: `
+          <h2>Build Complete</h2>
+          <p><strong>Name:</strong> ${esc(data.lead_name || '—')}</p>
+          <p><strong>Email:</strong> ${esc(data.lead_email || '—')}</p>
+          <p><strong>Problem:</strong> ${esc(data.problem || '—')}</p>
+          <p><strong>Tier:</strong> ${esc(data.tier || '—')}</p>
+          <p><strong>Payment:</strong> $${Math.round((data.payment_amount || 0) / 100)}</p>
+          <p>Artifacts have been delivered to the lead. Check if they need hosting or ongoing support.</p>
+          <p><a href="${SITE_URL}/admin">Open Lead Dashboard</a></p>
+        `,
+      };
+
     case 'nurture':
       if (!data.lead_email) return null;
       return {
