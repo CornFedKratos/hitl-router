@@ -144,6 +144,22 @@ function buildEmail(type, data) {
         `,
       };
 
+    case 'recovery_link':
+      if (!data.lead_email || !data.recovery_token) return null;
+      return {
+        from: FROM,
+        to: data.lead_email,
+        subject: 'Access your HITL-AI-DLC session from this device',
+        html: `
+          <h2>Session Recovery Link</h2>
+          <p>You requested access to your project session from another device.</p>
+          <p>Click below to restore your session:</p>
+          <p><a href="${SITE_URL}?recover=${data.recovery_token}" style="display:inline-block;background:#3B9FE7;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">Open My Session</a></p>
+          <p style="color:#888;font-size:12px;">This link expires when your session expires (7 days from creation). If it's expired, start a new session at <a href="${SITE_URL}">${SITE_URL}</a>.</p>
+          <p style="color:#888;font-size:12px;">S3 Technology &middot; HITL-AI-DLC</p>
+        `,
+      };
+
     default:
       console.warn('Unknown notification type:', type);
       return null;

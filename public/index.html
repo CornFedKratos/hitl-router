@@ -1710,6 +1710,17 @@
       </div>
 
       <div class="handoff-saved">Session saved for 7 days.</div>
+
+      <!-- HIT-29: Recovery email prompt -->
+      <div id="recovery-prompt" style="text-align:center;margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:8px;">Want to access this session from another device?</div>
+        <div style="display:flex;gap:8px;max-width:360px;margin:0 auto;">
+          <input type="email" id="recovery-email" placeholder="Your email" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;outline:none;">
+          <button onclick="sendRecoveryEmail()" id="recovery-send-btn" style="background:var(--blue);border:none;border-radius:8px;padding:8px 16px;color:white;font-size:13px;cursor:pointer;white-space:nowrap;">Send link</button>
+        </div>
+        <div id="recovery-status" style="font-size:12px;color:var(--muted);margin-top:6px;display:none;"></div>
+      </div>
+
       <div style="text-align:center;margin-top:12px;">
         <a onclick="showLauncherFallback()" style="font-size:12px;color:var(--muted);text-decoration:none;cursor:pointer;">Having trouble with the launcher?</a>
       </div>
@@ -1986,12 +1997,21 @@ function dismissOnboarding() {
 }
 
 // ── Auto-route returning orchestrators (HIT-29 stub) ──
-// ── HIT-21: Check for resume token in URL ──
+// ── HIT-21 / HIT-29: Check for resume/recover tokens in URL ──
 (function checkResumeLink() {
-  const resumeToken = new URLSearchParams(location.search).get('resume');
+  const params = new URLSearchParams(location.search);
+
+  const resumeToken = params.get('resume');
   if (resumeToken) {
     resumeSession(resumeToken);
-    return; // Skip other checks — resume takes priority
+    return;
+  }
+
+  // HIT-29: Recovery link — orchestrator accessing from another device
+  const recoverToken = params.get('recover');
+  if (recoverToken) {
+    recoverSession(recoverToken);
+    return;
   }
 
   // HIT-29: Returning orchestrator recognition
@@ -2002,6 +2022,27 @@ function dismissOnboarding() {
     checkReturningOrchestrator(token);
   }
 })();
+
+async function recoverSession(token) {
+  document.getElementById('user-type-gate').style.display = 'none';
+
+  try {
+    const res = await fetch(`/api/recover?token=${encodeURIComponent(token)}`);
+    if (!res.ok) throw new Error('Recovery failed');
+
+    const { session_id } = await res.json();
+    if (!session_id) throw new Error('No session');
+
+    // Restore localStorage and show welcome back
+    localStorage.setItem('hitl_session_token', session_id);
+    userType = 'orchestrator';
+    sessionId = session_id;
+    checkReturningOrchestrator(session_id);
+  } catch (err) {
+    console.error('Recovery failed:', err);
+    document.getElementById('user-type-gate').style.display = '';
+  }
+}
 
 async function checkReturningOrchestrator(token) {
   try {
@@ -3172,6 +3213,40 @@ function showHandoff(sid) {
   document.getElementById('handoff-download').href = `/api/launcher?session=${sid}`;
   handoff.classList.add('visible');
   handoff.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// ── HIT-29: Recovery email ──
+let recoverySent = false;
+
+async function sendRecoveryEmail() {
+  if (recoverySent || !sessionId) return;
+  const email = document.getElementById('recovery-email')?.value.trim();
+  if (!email) return;
+
+  const btn = document.getElementById('recovery-send-btn');
+  const status = document.getElementById('recovery-status');
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+
+  try {
+    const res = await fetch('/api/recover', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, email }),
+    });
+
+    if (!res.ok) throw new Error('Failed');
+
+    recoverySent = true;
+    document.getElementById('recovery-prompt').innerHTML =
+      '<div style="font-size:13px;color:#6EE7B7;">Recovery link sent! Check your email.</div>';
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = 'Send link';
+    status.style.display = 'block';
+    status.textContent = 'Failed to send. Try again.';
+    status.style.color = '#F87171';
+  }
 }
 
 // ── HIT-31: Launcher fallback ──
