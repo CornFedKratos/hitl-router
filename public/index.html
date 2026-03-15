@@ -1959,7 +1959,7 @@
 
     <!-- Paywall Panel (HIT-39) -->
     <div class="paywall-panel" id="paywall-panel">
-      <div class="paywall-title">Here's what you're getting and what it costs.</div>
+      <div class="paywall-title" id="paywall-title">Here's what you're getting and what it costs.</div>
       <div class="paywall-price" id="paywall-price"></div>
       <div class="paywall-comparison" id="paywall-comparison"></div>
       <div class="paywall-savings" id="paywall-savings"></div>
@@ -4276,6 +4276,25 @@ function copyText(text) {
 }
 
 // ── HIT-39/40: Build engine + pricing ──
+// ── HIT-57: Paywall config ──
+const PAYWALL_CONFIG = {
+  headline: 'Great choice. Let\u2019s build it.',
+  subheadline: 'Carl will build your complete website from the {direction} direction.',
+  deliverables: {
+    quick_build: [
+      'Complete HTML website with your content and brand',
+      'Contact form, service list, mobile-ready',
+      'Download and deploy anywhere \u2014 it\u2019s yours',
+    ],
+    launchpad: [
+      'Full product requirements document',
+      'Feature specs with acceptance criteria',
+      'Glossary, risk log, and prioritized roadmap',
+    ],
+  },
+  fallback_cta: 'Not ready to pay? Contact Don \u2192',
+};
+
 const MAINTENANCE_CONFIG = {
   tier1: {
     label: 'Website Maintenance',
@@ -4320,19 +4339,25 @@ async function startBuildFlow(sid) {
 
 function showPaywall(sid, data) {
   const p = data.pricing;
+  const tier = data.tier || 'quick_build';
+  const dirName = mockupData?.directions?.find(d => d.id === selectedMockupDirection)?.name || selectedMockupDirection || '';
+  const deliverables = PAYWALL_CONFIG.deliverables[tier] || PAYWALL_CONFIG.deliverables.quick_build;
 
+  document.getElementById('paywall-title').textContent = PAYWALL_CONFIG.headline;
   document.getElementById('paywall-price').textContent = p.ai_build_display;
-  document.getElementById('paywall-comparison').textContent =
-    `Boutique agency equivalent: ${p.agency_low_display}\u2013${p.agency_high_display}`;
-  document.getElementById('paywall-savings').textContent =
-    `You\u2019re saving ~${p.savings_percentage}%`;
+
+  // Direction name + deliverables
+  document.getElementById('paywall-comparison').innerHTML =
+    `<div style="margin-bottom:12px;">${PAYWALL_CONFIG.subheadline.replace('{direction}', '<strong>' + escapeHtml(dirName) + '</strong>')}</div>` +
+    `<div style="margin-bottom:16px;">${deliverables.map(d => '<div style="padding:3px 0;"><span style="color:#6EE7B7;">&#10003;</span> ' + escapeHtml(d) + '</div>').join('')}</div>`;
+
+  // Remove savings and human upsell — those move to post-download
+  document.getElementById('paywall-savings').textContent = '';
   document.getElementById('paywall-human').innerHTML =
-    `<strong>Want Don involved?</strong> Human-assisted engagements start at ${p.human_build_display}. ` +
-    `<a href="mailto:don@s3technology.io" style="color:var(--blue);text-decoration:none;">Contact Don</a> to discuss.` +
-    `<div style="margin-top:6px;font-size:12px;">$225/hr is a starting point \u2014 scope and budget are always flexible.</div>`;
+    `<a href="mailto:don@s3technology.io" style="color:var(--muted);text-decoration:none;font-size:13px;">${PAYWALL_CONFIG.fallback_cta}</a>`;
 
   // Initialize Stripe embedded checkout
-  initStripeCheckout(sid, data.tier);
+  initStripeCheckout(sid, tier);
 
   const panel = document.getElementById('paywall-panel');
   panel.classList.add('visible');
@@ -4517,10 +4542,18 @@ function showArtifactDelivery(sid, tier, outputs) {
     ? 'Your website and project summary are ready to download.'
     : 'Your spec package is ready to download.';
 
-  // Value reinforcement
+  // Value reinforcement — agency comparison lives here now (moved from paywall in HIT-57)
   if (pricingData) {
     const p = pricingData.pricing;
-    value.innerHTML = `<strong>You just got ${isTier1 ? 'a custom website + project summary' : 'a full PRD, feature specs, glossary, risk log, and roadmap'}</strong> for ${p.ai_build_display}.<br>A boutique agency charges ${p.agency_low_display}\u2013${p.agency_high_display} for this.`;
+    value.innerHTML = `
+      <strong>You just got ${isTier1 ? 'a custom website + project summary' : 'a full PRD, feature specs, glossary, risk log, and roadmap'}</strong> for ${p.ai_build_display}.
+      <br>A boutique agency charges ${p.agency_low_display}\u2013${p.agency_high_display} for this.
+      <br><span style="color:#6EE7B7;font-weight:600;">You saved ~${p.savings_percentage}%.</span>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:13px;">
+        <strong>Want Don\u2019s team to take it further?</strong> Human-assisted engagements start at ${p.human_build_display}.
+        <br><span style="font-size:12px;color:#555;">$225/hr is a starting point \u2014 scope and budget are always flexible.</span>
+      </div>
+    `;
   }
 
   // Maintenance upsell

@@ -42,7 +42,10 @@ export default async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ leads: data || [] }), {
+    return new Response(JSON.stringify({
+      leads: data || [],
+      testing_mode: process.env.TESTING_MODE === 'true',
+    }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
