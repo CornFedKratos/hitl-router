@@ -2346,6 +2346,7 @@ function stripPhaseComplete(text) {
   return text
     .replace(/\n?PHASE0_COMPLETE:\{.*?\}$/s, '')
     .replace(/\n?QUICKBUILD_READY:\{.*?\}$/s, '')
+    .replace(/\n?ENGAGEMENT_TIER:\{.*?\}$/s, '')
     .trim();
 }
 
@@ -2623,6 +2624,35 @@ function showHandoff(sid) {
   handoff.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
+// ── Tier 3: Full Engagement warm handoff (HIT-27 stub) ──
+function showFullEngagementHandoff(sid) {
+  const panel = document.getElementById('human-led-handoff');
+  const content = document.getElementById('human-led-handoff-content');
+
+  content.innerHTML = `
+    <div class="human-led-handoff-title">This is a big one. Let's talk.</div>
+    <div class="human-led-handoff-desc">
+      Your project has the scope and complexity of a full engagement. The best next step is a conversation with our team to map out the right approach — architecture, timeline, team composition, and investment.
+    </div>
+    <div class="human-led-handoff-pricing">
+      Full engagements are scoped individually. We'll walk you through options and pricing on the call.
+    </div>
+    <form class="human-led-form" id="human-led-form" onsubmit="submitHumanLedForm(event)">
+      <input type="text" id="hl-name" placeholder="Your name" value="${escapeHtml(popupLeadData?.name || '')}">
+      <input type="email" id="hl-email" placeholder="Your email" value="${escapeHtml(popupLeadData?.email || '')}">
+      <input type="text" id="hl-problem" placeholder="What you're trying to build" value="${escapeHtml(popupAnswers?.problem || '')}" readonly>
+      <textarea id="hl-message" placeholder="Anything else you'd like us to know? (optional)"></textarea>
+      <button type="submit" class="human-led-submit" id="hl-submit">Request a Consultation</button>
+    </form>
+    <div class="human-led-fallback">
+      Prefer email directly? <a href="mailto:don@s3technology.io">don@s3technology.io</a>
+    </div>
+  `;
+
+  panel.classList.add('visible');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
 // ── Send message ──
 async function sendMessage() {
   const text = input.value.trim();
@@ -2706,11 +2736,15 @@ async function sendMessage() {
             updatePhaseBar(parsed.phase, parsed.phase0_complete);
 
             if (parsed.quickbuild_ready && parsed.quickbuild_content) {
-              // Quick Build path — CDO takes over
+              // Tier 1: Quick Build path — CDO takes over
               phase0Complete = true;
               activateQuickBuild(parsed.quickbuild_content);
+            } else if (parsed.phase0_complete && parsed.engagement_tier === 'full_engagement') {
+              // Tier 3: Full Engagement — warm handoff to Don
+              phase0Complete = true;
+              showFullEngagementHandoff(parsed.session_id);
             } else if (parsed.phase0_complete) {
-              // Standard path — show CLI handoff
+              // Tier 2 (Launchpad) or default — show CLI handoff
               phase0Complete = true;
               showHandoff(parsed.session_id);
             }

@@ -52,6 +52,83 @@ function detectRole(message, session) {
   return 'CPO';
 }
 
+// ── Engagement tier signal detection (HIT-27) ──
+
+const TIER_SIGNALS = {
+  quick_build: [
+    { id: 'single_deliverable', patterns: ['website', 'landing page', 'single page', 'one page', 'brochure site', 'portfolio'] },
+    { id: 'short_timeline', patterns: ['asap', 'as soon as possible', 'few weeks', 'this week', 'end of month', 'rush', 'days', 'right away', 'immediately'] },
+    { id: 'no_auth', patterns: ['no login', 'no accounts', 'no sign up', 'no authentication', 'no user accounts'] },
+    { id: 'no_payments', patterns: ['no payments', 'no billing', 'no e-commerce', 'no transactions', 'no checkout'] },
+    { id: 'local_audience', patterns: ['local', 'neighborhood', 'my town', 'my city', 'regional', 'small community'] },
+    { id: 'lead_gen_goal', patterns: ['lead gen', 'credibility', 'online presence', 'business card', 'get found', 'google search', 'seo'] },
+    { id: 'solo_operator', patterns: ['just me', 'solo', 'one person', 'i am the', 'my own', 'solopreneur', 'freelance'] },
+  ],
+  launchpad: [
+    { id: 'multiple_stakeholders', patterns: ['team', 'board', 'cto', 'ceo', 'we need', 'our team', 'department', 'committee', 'approval'] },
+    { id: 'existing_systems', patterns: ['integrate', 'api', 'database', 'existing system', 'migrate', 'legacy', 'connect to', 'salesforce', 'shopify', 'erp', 'crm'] },
+    { id: 'compliance', patterns: ['compliance', 'hipaa', 'gdpr', 'regulation', 'audit', 'security requirements', 'pci', 'sox'] },
+    { id: 'buy_in_needed', patterns: ['buy-in', 'approval', 'executive', 'sign off', 'budget approval', 'stakeholder alignment'] },
+    { id: 'ai_integration', patterns: ['ai', 'machine learning', 'automation', 'chatbot', 'nlp', 'model', 'intelligent'] },
+    { id: 'medium_timeline', patterns: ['months', 'quarter', 'q1', 'q2', 'q3', 'q4', 'next quarter', 'few months', '3 months', '6 months'] },
+    { id: 'process_level', patterns: ['workflow', 'process', 'pipeline', 'operations', 'internal tool', 'dashboard', 'reporting'] },
+    { id: 'regulated_industry', patterns: ['healthcare', 'finance', 'legal', 'logistics', 'manufacturing', 'insurance', 'banking', 'pharma', 'government'] },
+  ],
+  full_engagement: [
+    { id: 'enterprise_context', patterns: ['enterprise', 'large organization', 'corporation', 'fortune 500', 'global', 'thousands of users', 'multi-national'] },
+    { id: 'platform_level', patterns: ['platform', 'multiple products', 'multiple user types', 'marketplace', 'ecosystem', 'suite of tools', 'multi-tenant'] },
+    { id: 'long_timeline', patterns: ['ongoing', 'long-term', 'partnership', 'year', 'multi-year', 'roadmap', 'phases', 'multi-phase'] },
+    { id: 'custom_infra', patterns: ['custom infrastructure', 'data science', 'ml pipeline', 'custom hosting', 'kubernetes', 'microservices', 'distributed'] },
+    { id: 'prior_failures', patterns: ['tried before', 'failed', 'previous vendor', 'rebuilt', 'rewrite', 'started over', 'burned'] },
+    { id: 'partner_language', patterns: ['partner', 'not a vendor', 'strategic', 'long-term relationship', 'trusted advisor', 'embedded team'] },
+    { id: 'large_budget', patterns: ['investment', 'significant budget', 'enterprise budget', 'funded', 'series', 'raise', 'capital'] },
+  ],
+};
+
+function detectEngagementTier(text) {
+  const lower = text.toLowerCase();
+  const results = {};
+
+  for (const [tier, signals] of Object.entries(TIER_SIGNALS)) {
+    const matched = [];
+    for (const signal of signals) {
+      if (signal.patterns.some(p => lower.includes(p))) {
+        matched.push(signal.id);
+      }
+    }
+    results[tier] = matched;
+  }
+
+  // Score: count matched signals per tier
+  const scores = {
+    quick_build: results.quick_build.length,
+    launchpad: results.launchpad.length,
+    full_engagement: results.full_engagement.length,
+  };
+
+  // Determine tier — highest score with 3+ signals wins
+  let tier = 'launchpad'; // default
+  let confidence = 1;
+  let signals = results.launchpad;
+
+  if (scores.full_engagement >= 3) {
+    tier = 'full_engagement';
+    confidence = scores.full_engagement >= 5 ? 3 : 2;
+    signals = results.full_engagement;
+  } else if (scores.quick_build >= 3) {
+    tier = 'quick_build';
+    confidence = scores.quick_build >= 5 ? 3 : 2;
+    signals = results.quick_build;
+  } else if (scores.launchpad >= 3) {
+    tier = 'launchpad';
+    confidence = scores.launchpad >= 5 ? 3 : 2;
+    signals = results.launchpad;
+  }
+  // If nothing hits 3, default to launchpad with low confidence
+
+  return { tier, confidence, signals };
+}
+
 // ── System prompt builder ──
 
 function buildSystemPrompt(role, session) {
@@ -71,28 +148,59 @@ Guide the conversation naturally:
 4. Make a clear GO / CONDITIONAL GO / STOP recommendation
 5. Ask the orchestrator to confirm the Go decision
 
-QUICK BUILD DETECTION:
-After the orchestrator confirms the Go decision, evaluate whether this is a Quick Build project.
-A project qualifies for Quick Build when 3 or more of these are true:
-- Deliverable is a website, landing page, or single-page tool
-- Timeline is days or "as soon as possible"
-- No mention of user accounts, logins, or roles
-- No payments or financial transactions
-- No external API integrations
-- Audience is local or regional
-- Goal is lead generation, credibility, or information display
+ENGAGEMENT TIER CLASSIFICATION:
+After the orchestrator confirms the Go decision, classify the engagement tier based on signals from the conversation.
 
-If Quick Build is detected:
-1. Write your normal Go decision confirmation
-2. Then add a handoff message: "This looks like a great fit for a Quick Build — [brief reason]. This is a job for our Chief Design Officer. Let me grab Carl."
-3. Append this JSON block at the end on its own line:
+TIER 1 — Quick Build (3+ signals):
+- Single deliverable (website, landing page, single tool)
+- Short timeline (days, weeks, ASAP)
+- No authentication, payments, or integrations
+- Local or small audience
+- Lead gen or credibility goal
+- Solo operator, no other stakeholders
+- Small or unstated budget
+
+TIER 2 — Launchpad (3+ signals):
+- Multiple stakeholders (team, board, CTO, "we")
+- Existing systems to integrate with
+- Compliance, security, or industry requirements
+- Internal buy-in or approval needed
+- AI integration or automation is core
+- Medium timeline (months, quarters)
+- Process-level problem (workflows, dashboards, internal tools)
+- Regulated industry (healthcare, finance, legal, logistics)
+
+TIER 3 — Full Engagement (3+ signals):
+- Enterprise or large organization context
+- Platform-level thinking (multiple products, user types)
+- Long timeline or ongoing partnership language
+- Custom infrastructure, data science, or ML
+- Prior failed attempts or vendor relationships
+- "We need a partner, not a vendor" language
+- Large or investment-framed budget
+
+When mixed signals, default to Tier 2 (over-qualify, never under-qualify).
+
+COMPLETION SIGNALS:
+After Go decision confirmation, append the appropriate signal block.
+
+If Tier 1 (Quick Build) is detected:
+1. Write your Go decision confirmation
+2. Add a handoff: "This looks like a great fit for a Quick Build — [brief reason]. This is a job for our Chief Design Officer. Let me grab Carl."
+3. Append on its own line:
 QUICKBUILD_READY:{"business_name":"...","tagline":"...","location":"...","services":["..."],"credibility":"...","goal":"...","phone":"","email":"","problem":"...","solution":"...","audience":"...","tier":1,"client_engagement":false,"security_scope":false}
-Fill in ALL fields from the conversation. Services should be an array. Leave phone/email empty if not provided.
+Fill in ALL fields. Services as array. Leave phone/email empty if not provided.
 
-If Quick Build is NOT detected (complex project), use the standard completion:
+If Tier 2 or Tier 3 (not Quick Build):
 PHASE0_COMPLETE:{"phase0_complete":true,"problem":"...","solution":"...","audience":"...","tier":${session?.tier || 1},"client_engagement":${session?.client_engagement || false},"security_scope":${session?.security_scope || false}}
 
-Do NOT append either block until the orchestrator has explicitly confirmed the Go decision.
+ALWAYS also append this tier classification block on its own line (after either QUICKBUILD_READY or PHASE0_COMPLETE):
+ENGAGEMENT_TIER:{"tier":"quick_build|launchpad|full_engagement","confidence":1-3,"signals":["signal_id_1","signal_id_2"]}
+- tier: one of quick_build, launchpad, full_engagement
+- confidence: 1=inferred, 2=likely, 3=confirmed by strong signals
+- signals: array of signal IDs you detected (e.g. "multiple_stakeholders", "short_timeline", "enterprise_context")
+
+Do NOT append any signal blocks until the orchestrator has explicitly confirmed the Go decision.
 Do NOT mention these JSON blocks to the orchestrator — they are for system use only.` : '';
 
   // CDO in Quick Build mode gets a special identity
@@ -207,20 +315,29 @@ async function storeMessage(sessionId, role, content, agentRole) {
   if (error) console.error('Failed to store message:', error.message);
 }
 
-async function completePhase0(sessionId, metadata) {
+async function completePhase0(sessionId, metadata, tierData) {
   // Update session with extracted fields
+  const update = {
+    problem: metadata.problem,
+    solution: metadata.solution,
+    audience: metadata.audience,
+    tier: metadata.tier,
+    client_engagement: metadata.client_engagement,
+    security_scope: metadata.security_scope,
+    go_decision: true,
+    phase: 1,
+  };
+
+  // HIT-27: Write engagement tier classification
+  if (tierData) {
+    update.engagement_tier = tierData.tier;
+    update.tier_confidence = tierData.confidence;
+    update.tier_signals = tierData.signals;
+  }
+
   const { error: updateError } = await supabase
     .from('sessions')
-    .update({
-      problem: metadata.problem,
-      solution: metadata.solution,
-      audience: metadata.audience,
-      tier: metadata.tier,
-      client_engagement: metadata.client_engagement,
-      security_scope: metadata.security_scope,
-      go_decision: true,
-      phase: 1,
-    })
+    .update(update)
     .eq('id', sessionId);
 
   if (updateError) console.error('Failed to update session:', updateError.message);
@@ -233,7 +350,7 @@ async function completePhase0(sessionId, metadata) {
     visibility: 'both',
     author: 'CPO',
     summary: `Project Intake — ${metadata.problem}`,
-    details: `Problem: ${metadata.problem}\nSolution: ${metadata.solution}\nAudience: ${metadata.audience}\nTier: ${metadata.tier}\nClient engagement: ${metadata.client_engagement}\nSecurity scope: ${metadata.security_scope}`,
+    details: `Problem: ${metadata.problem}\nSolution: ${metadata.solution}\nAudience: ${metadata.audience}\nTier: ${metadata.tier}\nClient engagement: ${metadata.client_engagement}\nSecurity scope: ${metadata.security_scope}${tierData ? `\nEngagement tier: ${tierData.tier} (confidence: ${tierData.confidence})\nSignals: ${tierData.signals.join(', ')}` : ''}`,
   });
 
   // Write feasibility KB entry
@@ -409,12 +526,29 @@ export default async (req) => {
             }
           }
 
+          // 9b. Check for ENGAGEMENT_TIER signal (HIT-27)
+          let tierData = null;
+          const tierMatch = cleanResponse.match(/\n?ENGAGEMENT_TIER:(\{.*\})/);
+          if (tierMatch) {
+            try {
+              tierData = JSON.parse(tierMatch[1]);
+              cleanResponse = cleanResponse.replace(/\n?ENGAGEMENT_TIER:\{.*\}/, '').trim();
+            } catch {
+              // Invalid JSON — fall back to deterministic detection
+            }
+          }
+
+          // Deterministic tier detection as fallback (runs on full message text)
+          if (!tierData && phase0Complete) {
+            tierData = detectEngagementTier(fullResponse);
+          }
+
           // 10. Store agent response (clean version without JSON blocks)
           await storeMessage(sessionId, 'agent', cleanResponse, detectedRole);
 
           // 11. Handle Phase 0 completion
           if (phase0Complete && phase0Metadata) {
-            await completePhase0(sessionId, phase0Metadata);
+            await completePhase0(sessionId, phase0Metadata, tierData);
           }
 
           // 12. Send completion event
@@ -426,6 +560,13 @@ export default async (req) => {
             phase0_complete: phase0Complete,
             go_decision: phase0Complete ? true : session.go_decision,
           };
+
+          // Include tier data in done event for frontend routing
+          if (tierData) {
+            donePayload.engagement_tier = tierData.tier;
+            donePayload.tier_confidence = tierData.confidence;
+            donePayload.tier_signals = tierData.signals;
+          }
 
           // Add Quick Build data to the done event
           if (quickbuildReady && quickbuildContent) {
