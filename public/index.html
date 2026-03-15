@@ -2738,25 +2738,50 @@ function skipToChat() {
 }
 
 // ── Popup Question Flow Engine ──
-const POPUP_SCREENS = [
-  // Lead-only preamble
+// ── HIT-45: Tech path question set ──
+const TECH_POPUP_SCREENS = [
   { id: 'expectation', type: 'info', leadOnly: true },
   { id: 'capture', type: 'lead-capture', leadOnly: true },
-  // Project questions (both paths)
   { id: 'problem', type: 'question', question: 'What problem are you trying to solve?', hint: 'Describe the pain point, gap, or opportunity.', placeholder: 'Our customers currently have to...', required: true },
   { id: 'solution', type: 'question', question: 'What\u2019s the solution you\u2019re imagining?', hint: 'It doesn\u2019t need to be detailed \u2014 a direction is enough.', placeholder: 'An app that lets them...', required: true },
   { id: 'audience', type: 'question', question: 'Who is this for? Who needs it most?', hint: 'Think about the person who will use this every day.', placeholder: 'Small business owners who...', required: true },
   { id: 'success', type: 'question', question: 'What does success look like for this project?', hint: 'How will you know this worked?', placeholder: 'We\u2019ll know it\u2019s working when...', required: true },
-  { id: 'client', type: 'question', question: 'Is this for a paying client or an internal project?', hint: 'This helps us determine the right engagement level.', placeholder: 'Paying client / Internal / Side project', required: true },
+  { id: 'client', type: 'chips', question: 'Who is this project for?', hint: 'This helps us determine the right engagement level.', required: true, options: [
+    { value: 'Paying client', icon: '\uD83E\uDDD1\u200D\uD83D\uDCBC' },
+    { value: 'Internal / company project', icon: '\uD83C\uDFE2' },
+    { value: 'Personal project \u2014 this is for me', icon: '\uD83D\uDE4B' },
+  ]},
   { id: 'timeline', type: 'question', question: 'What\u2019s your timeline?', hint: 'Rough is fine \u2014 days, weeks, months?', placeholder: 'We need this by...', required: true },
   { id: 'stakeholders', type: 'question', question: 'Who else is involved?', hint: 'Stakeholders, team members, decision-makers.', placeholder: 'It\u2019s just me / Our CTO and two developers / A board that needs to approve...', required: true },
   { id: 'existing_systems', type: 'question', question: 'Are there existing systems this needs to connect to?', hint: 'Databases, APIs, tools, platforms \u2014 anything that already exists.', placeholder: 'We use Shopify and need it to integrate with... / Starting from scratch', required: true },
   { id: 'constraints', type: 'question', question: 'Any technical constraints we should know about?', hint: 'Hosting requirements, tech stack preferences, compliance needs. Skip if none.', placeholder: 'Must run on AWS / Needs HIPAA compliance / No preference', required: false },
-  // Qualification gate (HIT-19)
   { id: 'qualification', type: 'qualification' },
-  // Lead-only source attribution
   { id: 'source', type: 'source-attribution', leadOnly: true },
 ];
+
+// ── HIT-45: Design path question set (Carl-voiced) ──
+const DESIGN_POPUP_SCREENS = [
+  { id: 'expectation', type: 'info', leadOnly: true },
+  { id: 'capture', type: 'lead-capture', leadOnly: true },
+  { id: 'business_name', type: 'question', question: 'What\u2019s the name of your business and what do you do?', hint: 'Don\u2019t overthink it. Just tell us what you do.', placeholder: 'Schminkey Home Inspections \u2014 we inspect homes before purchase...', required: true },
+  { id: 'audience', type: 'question', question: 'Who are your best customers?', hint: 'Describe the person you\u2019re trying to reach.', placeholder: 'Real estate agents and first-time home buyers in the Marion area...', required: true },
+  { id: 'goal', type: 'question', question: 'What\u2019s the #1 thing you want people to do when they find you online?', hint: 'One action. What matters most?', placeholder: 'Call us, fill out a contact form, or book an inspection...', required: true },
+  { id: 'feeling', type: 'question', question: 'How should your brand feel? Give me three words.', hint: 'Don\u2019t worry about design \u2014 just the feeling.', placeholder: 'Trustworthy, professional, approachable...', required: true },
+  { id: 'style', type: 'question', question: 'Any styles, colors, or looks you love \u2014 or definitely want to avoid?', hint: 'References welcome \u2014 competitor sites, brands you admire, anything.', placeholder: 'Love clean and simple. Hate anything too corporate or cold...', required: false },
+  { id: 'client', type: 'chips', question: 'Who is this project for?', hint: 'This helps us understand the engagement.', required: true, options: [
+    { value: 'Paying client', icon: '\uD83E\uDDD1\u200D\uD83D\uDCBC' },
+    { value: 'Internal / company project', icon: '\uD83C\uDFE2' },
+    { value: 'Personal project \u2014 this is for me', icon: '\uD83D\uDE4B' },
+  ]},
+  { id: 'timeline', type: 'question', question: 'What\u2019s your timeline?', hint: '', placeholder: 'As soon as possible...', required: true },
+  { id: 'stakeholders', type: 'question', question: 'Is it just you making decisions, or are others involved?', hint: 'Business partner, spouse, board \u2014 whoever needs to sign off.', placeholder: 'Just me...', required: true },
+  { id: 'existing_systems', type: 'question', question: 'Are there any tools, platforms, or systems this needs to connect to?', hint: 'Or just say none if this is starting fresh.', placeholder: 'We use Calendly for booking and QuickBooks for invoicing...', required: false },
+  { id: 'qualification', type: 'qualification' },
+  { id: 'source', type: 'source-attribution', leadOnly: true },
+];
+
+// Backwards-compatible alias
+const POPUP_SCREENS = TECH_POPUP_SCREENS;
 
 let popupScreens = [];
 let popupStep = 0;
@@ -2766,10 +2791,12 @@ let popupSessionCreated = false;
 let popupIdleTimer = null;
 
 function getActiveScreens() {
+  // HIT-45: Design path gets Carl-voiced questions
+  const base = needType === 'design' ? DESIGN_POPUP_SCREENS : TECH_POPUP_SCREENS;
   if (userType === 'orchestrator') {
-    return POPUP_SCREENS.filter(s => !s.leadOnly);
+    return base.filter(s => !s.leadOnly);
   }
-  return POPUP_SCREENS;
+  return base;
 }
 
 function openPopupFlow() {
@@ -2856,6 +2883,21 @@ function renderPopupStep() {
     `;
     // Focus email field
     setTimeout(() => document.getElementById('popup-lead-email')?.focus(), 100);
+  } else if (screen.type === 'chips') {
+    // HIT-45: Chip selection (e.g. client/internal/personal)
+    const selected = popupAnswers[screen.id] || '';
+    contentEl.innerHTML = `
+      <div class="popup-step-label">Step ${questionIndex} of ${totalQuestions}</div>
+      <div class="popup-question">${screen.question}</div>
+      <div class="popup-hint">${screen.hint}</div>
+      <div class="popup-source-options" id="popup-chip-options">
+        ${screen.options.map(opt => `<div class="popup-source-option${selected === opt.value ? ' selected' : ''}" onclick="selectChip(this, '${screen.id}', '${opt.value.replace(/'/g, "\\'")}')">${opt.icon ? opt.icon + ' ' : ''}${opt.value}</div>`).join('')}
+      </div>
+      <div class="popup-actions">
+        <button class="popup-back" onclick="popupBack()" ${popupStep === 0 ? 'disabled' : ''}>&#8592; Back</button>
+        <button class="popup-next" onclick="popupNext()">Next</button>
+      </div>
+    `;
   } else if (screen.type === 'qualification') {
     // HIT-19: AI vs. human-led qualification gate
     contentEl.innerHTML = `
@@ -2938,6 +2980,13 @@ function clearConsentError() {
 
 let selectedSourceValue = '';
 
+// HIT-45: Chip selection handler
+function selectChip(el, screenId, value) {
+  document.querySelectorAll('#popup-chip-options .popup-source-option').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  popupAnswers[screenId] = value;
+}
+
 function selectSource(el, value) {
   document.querySelectorAll('.popup-source-option').forEach(o => o.classList.remove('selected'));
   el.classList.add('selected');
@@ -2989,6 +3038,11 @@ function popupNext() {
       return;
     }
     popupAnswers[screen.id] = answer;
+  } else if (screen.type === 'chips') {
+    // Chip selection — value already set by selectChip, just validate
+    if (screen.required && !popupAnswers[screen.id]) {
+      return; // No selection made
+    }
   } else if (screen.type === 'source-attribution') {
     const otherText = document.getElementById('popup-source-other')?.value.trim() || '';
     sourceAttribution.manual = selectedSourceValue === 'Other' ? (otherText || 'Other') : selectedSourceValue;
