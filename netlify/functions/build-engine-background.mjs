@@ -33,13 +33,22 @@ const AGENTS = [
 ];
 
 export default async (req) => {
+  let session_id = null;
+
   try {
-    const { session_id } = await req.json();
+    const body = await req.json();
+    session_id = body.session_id;
     if (!session_id) return new Response('session_id required', { status: 400 });
 
     const { data: session, error } = await supabase
       .from('sessions').select('*').eq('id', session_id).single();
-    if (error || !session) return new Response('Session not found', { status: 404 });
+    if (error || !session) {
+      await supabase.from('sessions').update({
+        build_phase: 'failed',
+        build_results: { status: 'failed', error: 'Session not found' },
+      }).eq('id', session_id);
+      return new Response('Session not found', { status: 404 });
+    }
 
     const tier = session.engagement_tier || 'launchpad';
     const ctx = {
@@ -102,15 +111,17 @@ export default async (req) => {
 
     return new Response('OK', { status: 200 });
   } catch (err) {
-    try {
-      const body = JSON.parse(await req.clone().text());
-      if (body.session_id) {
+    console.error('build-engine-background failed:', err.message);
+    if (session_id) {
+      try {
         await supabase.from('sessions').update({
           build_phase: 'failed',
           build_results: { status: 'failed', error: err.message },
-        }).eq('id', body.session_id);
+        }).eq('id', session_id);
+      } catch (writeErr) {
+        console.error('Failed to write failure state:', writeErr.message);
       }
-    } catch {}
+    }
     return new Response(err.message, { status: 500 });
   }
 };

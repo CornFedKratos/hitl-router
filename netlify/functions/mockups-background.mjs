@@ -122,14 +122,23 @@ Generate the directions now based on this specific project.`;
 // ── Background function handler ──
 
 export default async (req) => {
+  let sessionId = null;
+
   try {
-    const { session_id } = await req.json();
-    if (!session_id) return new Response('session_id required', { status: 400 });
+    const body = await req.json();
+    sessionId = body.session_id;
+
+    if (!sessionId) return new Response('session_id required', { status: 400 });
 
     const { data: session, error } = await supabase
-      .from('sessions').select('*').eq('id', session_id).single();
+      .from('sessions').select('*').eq('id', sessionId).single();
 
-    if (error || !session) return new Response('Session not found', { status: 404 });
+    if (error || !session) {
+      await supabase.from('sessions').update({
+        mockup_results: { status: 'failed', error: 'Session not found' },
+      }).eq('id', sessionId);
+      return new Response('Session not found', { status: 404 });
+    }
 
     const tier = session.engagement_tier || 'launchpad';
     let directions;
@@ -149,20 +158,21 @@ export default async (req) => {
         directions,
         calendly_url: tier === 'full_engagement' ? calendlyUrl : null,
       },
-    }).eq('id', session_id);
+    }).eq('id', sessionId);
 
     return new Response('OK', { status: 200 });
   } catch (err) {
-    // Write failure to Supabase so frontend knows
-    try {
-      const body = JSON.parse(await req.clone().text());
-      if (body.session_id) {
+    // Always write failure to Supabase — frontend is polling
+    console.error('mockups-background failed:', err.message);
+    if (sessionId) {
+      try {
         await supabase.from('sessions').update({
           mockup_results: { status: 'failed', error: err.message },
-        }).eq('id', body.session_id);
+        }).eq('id', sessionId);
+      } catch (writeErr) {
+        console.error('Failed to write failure state:', writeErr.message);
       }
-    } catch {}
-
+    }
     return new Response(err.message, { status: 500 });
   }
 };
