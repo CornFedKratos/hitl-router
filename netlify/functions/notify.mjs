@@ -203,6 +203,23 @@ function buildEmail(type, data) {
         `,
       };
 
+    case 'mockup_retry_exhausted':
+      return {
+        from: FROM,
+        to: ADMIN_EMAIL,
+        subject: `Mockup generation failed: ${data.lead_name || data.lead_email || 'Unknown'}`,
+        html: `
+          <h2>Mockup Generation Failed (Retry Limit Reached)</h2>
+          <p>A lead's mockup generation failed after ${data.retry_count || 2} attempts.</p>
+          <p><strong>Name:</strong> ${esc(data.lead_name || '—')}</p>
+          <p><strong>Email:</strong> ${esc(data.lead_email || '—')}</p>
+          <p><strong>Problem:</strong> ${esc(data.problem || '—')}</p>
+          <p><strong>Session:</strong> ${esc(data.session_id || '—')}</p>
+          <p>The lead has been told you'll follow up. Check the session in the dashboard.</p>
+          <p><a href="${SITE_URL}/admin">Open Lead Dashboard</a></p>
+        `,
+      };
+
     case 'recovery_link':
       if (!data.lead_email || !data.recovery_token) return null;
       return {

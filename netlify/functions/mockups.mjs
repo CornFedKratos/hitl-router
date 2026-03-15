@@ -31,7 +31,7 @@ export default async (req) => {
     // Verify session exists
     const { data: session, error } = await supabase
       .from('sessions')
-      .select('id, engagement_tier')
+      .select('id, engagement_tier, mockup_results, mockup_retry_count')
       .eq('id', session_id)
       .single();
 
@@ -41,11 +41,16 @@ export default async (req) => {
       });
     }
 
-    // Clear any previous results and mark as generating
-    await supabase.from('sessions').update({
+    // Clear previous results, increment retry count if re-triggering
+    const isRetry = session.mockup_results !== null;
+    const updateData = {
       mockup_results: null,
       mockup_tier: session.engagement_tier || 'launchpad',
-    }).eq('id', session_id);
+    };
+    if (isRetry) {
+      updateData.mockup_retry_count = (session.mockup_retry_count || 0) + 1;
+    }
+    await supabase.from('sessions').update(updateData).eq('id', session_id);
 
     // Trigger background function
     fetch(`${SITE_URL}/.netlify/functions/mockups-background`, {

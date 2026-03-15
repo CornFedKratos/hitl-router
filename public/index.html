@@ -2114,21 +2114,21 @@
       <div class="prototype-panel-subtitle">Click the one that feels right. The CDO will take it from there.</div>
       <div class="prototype-grid" id="prototype-grid">
         <div class="prototype-card" onclick="selectPrototypeCard('A')">
-          <iframe class="prototype-iframe" id="proto-iframe-A" sandbox="allow-same-origin"></iframe>
+          <iframe class="prototype-iframe" id="proto-iframe-A" sandbox="allow-same-origin allow-scripts"></iframe>
           <div class="prototype-label">
             <div class="prototype-label-name">Warm &amp; Trustworthy</div>
             <div class="prototype-label-desc">Soft, approachable, family-friendly</div>
           </div>
         </div>
         <div class="prototype-card" onclick="selectPrototypeCard('B')">
-          <iframe class="prototype-iframe" id="proto-iframe-B" sandbox="allow-same-origin"></iframe>
+          <iframe class="prototype-iframe" id="proto-iframe-B" sandbox="allow-same-origin allow-scripts"></iframe>
           <div class="prototype-label">
             <div class="prototype-label-name">Clean &amp; Professional</div>
             <div class="prototype-label-desc">Structured, information-forward</div>
           </div>
         </div>
         <div class="prototype-card" onclick="selectPrototypeCard('C')">
-          <iframe class="prototype-iframe" id="proto-iframe-C" sandbox="allow-same-origin"></iframe>
+          <iframe class="prototype-iframe" id="proto-iframe-C" sandbox="allow-same-origin allow-scripts"></iframe>
           <div class="prototype-label">
             <div class="prototype-label-name">Bold &amp; Modern</div>
             <div class="prototype-label-desc">High contrast, premium feel</div>
@@ -2142,7 +2142,7 @@
     <div class="outcome-screen" id="outcome-screen">
       <div class="outcome-title">Your website is ready.</div>
       <div class="outcome-preview">
-        <iframe id="outcome-iframe" sandbox="allow-same-origin"></iframe>
+        <iframe id="outcome-iframe" sandbox="allow-same-origin allow-scripts"></iframe>
       </div>
       <div class="outcome-actions">
         <button class="outcome-download" onclick="downloadSite()">Download your website</button>
@@ -4614,6 +4614,11 @@ function stopLoadingMessages() {
   if (loadingInterval) { clearInterval(loadingInterval); loadingInterval = null; }
 }
 
+// ── HIT-51: Mockup retry state ──
+let mockupRetryCount = 0;
+const MOCKUP_RETRY_LIMIT = 2;
+const MOCKUP_POLL_TIMEOUT_MS = 180000; // 3 minutes
+
 async function triggerMockups(sid) {
   const panel = document.getElementById('mockup-panel');
   const contentEl = document.getElementById('mockup-panel-content');
@@ -4625,11 +4630,14 @@ async function triggerMockups(sid) {
   loading.style.display = 'block';
   loading.style.transition = 'opacity 0.3s';
   actions.style.display = 'none';
+  contentEl.innerHTML = ''; // Clear any previous failure UI
+  contentEl.appendChild(loading);
   panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   // Start personality loading messages
   const voice = needType === 'design' ? 'carl' : needType === 'technology_support' ? 'cto' : 'cpo';
   startLoadingMessages(voice);
+  setSummaryStatus('Generating directions...');
 
   try {
     // Trigger background generation
@@ -4641,8 +4649,9 @@ async function triggerMockups(sid) {
 
     if (!res.ok) throw new Error('Failed to start mockup generation');
 
-    // Poll for results
-    for (let i = 0; i < 100; i++) {
+    // Poll for results with 3-minute timeout
+    const pollStart = Date.now();
+    while (Date.now() - pollStart < MOCKUP_POLL_TIMEOUT_MS) {
       await new Promise(r => setTimeout(r, 3000));
 
       const statusRes = await fetch(`/api/mockup-status?session_id=${encodeURIComponent(sid)}`);
@@ -4652,6 +4661,7 @@ async function triggerMockups(sid) {
 
       if (result.status === 'complete') {
         stopLoadingMessages();
+        setSummaryStatus('');
         mockupData = result;
         loading.style.display = 'none';
         renderMockupDirections(mockupData);
@@ -4687,12 +4697,84 @@ async function triggerMockups(sid) {
     throw new Error('Timed out waiting for mockups');
   } catch (err) {
     stopLoadingMessages();
+    setSummaryStatus('');
     loading.style.display = 'none';
-    contentEl.innerHTML = '<div class="mockup-fallback">Our team will prepare directions for you. We\u2019ll be in touch shortly.</div>';
-    actions.style.display = 'flex';
-    document.getElementById('mockup-refine-btn').style.display = 'none';
     console.error('Mockup generation failed:', err);
+    showMockupFailureUI(sid);
   }
+}
+
+function showMockupFailureUI(sid) {
+  const contentEl = document.getElementById('mockup-panel-content');
+  const actions = document.getElementById('mockup-actions');
+  actions.style.display = 'none';
+
+  if (mockupRetryCount >= MOCKUP_RETRY_LIMIT) {
+    // Retry limit reached — notify Don, show final fallback
+    contentEl.innerHTML = `
+      <div class="mockup-fallback">
+        <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:8px;">We're having trouble generating your directions right now.</div>
+        <div style="margin-bottom:16px;">Don has been notified and will follow up at <strong>${escapeHtml(popupLeadData?.email || 'your email')}</strong>.</div>
+        <button class="mockup-action-btn mockup-action-secondary" onclick="mockupContactFallback('${sid}')">Contact Don directly</button>
+      </div>
+    `;
+
+    // Notify Don
+    fetch('/api/qualify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sid, mockup_failed: true }),
+    }).catch(() => {});
+
+    // Send notification via a lightweight endpoint call
+    fetch('/api/abandon', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sid, partial_answers: { ...popupAnswers, _mockup_retry_exhausted: 'true' } }),
+    }).catch(() => {});
+
+  } else {
+    // Show retry + contact options
+    contentEl.innerHTML = `
+      <div class="mockup-fallback">
+        <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:8px;">Something went wrong generating your directions.</div>
+        <div style="margin-bottom:16px;">Your answers are saved \u2014 you don't need to start over.</div>
+        <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+          <button class="mockup-action-btn mockup-action-primary" onclick="retryMockups('${sid}')">Try again</button>
+          <button class="mockup-action-btn mockup-action-secondary" onclick="mockupContactFallback('${sid}')">Contact Don instead</button>
+        </div>
+      </div>
+    `;
+  }
+}
+
+function retryMockups(sid) {
+  mockupRetryCount++;
+  triggerMockups(sid);
+}
+
+function mockupContactFallback(sid) {
+  const panel = document.getElementById('human-led-handoff');
+  const content = document.getElementById('human-led-handoff-content');
+
+  content.innerHTML = `
+    <div class="human-led-handoff-title">We'll take it from here.</div>
+    <div class="human-led-handoff-desc">Your answers are saved. Don will review your project and prepare directions personally.</div>
+    <form class="human-led-form" id="human-led-form" onsubmit="submitHumanLedForm(event)">
+      <input type="text" id="hl-name" placeholder="Your name" value="${escapeHtml(popupLeadData?.name || '')}">
+      <input type="email" id="hl-email" placeholder="Your email" value="${escapeHtml(popupLeadData?.email || '')}">
+      <input type="text" id="hl-problem" value="${escapeHtml(popupAnswers?.problem || popupAnswers?.business_name || '')}" readonly>
+      <textarea id="hl-message" placeholder="Anything else? (optional)"></textarea>
+      <button type="submit" class="human-led-submit" id="hl-submit">Request a Consultation</button>
+    </form>
+    <div class="human-led-fallback">
+      Or email directly: <a href="mailto:don@s3technology.io">don@s3technology.io</a>
+    </div>
+  `;
+
+  document.getElementById('mockup-panel').classList.remove('visible');
+  panel.classList.add('visible');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function renderMockupDirections(data) {
@@ -4708,7 +4790,7 @@ function renderMockupDirections(data) {
     contentEl.innerHTML = `<div class="mockup-grid" id="mockup-grid">
       ${directions.map(d => `
         <div class="mockup-card" onclick="selectMockupDirection('${d.id}')" data-dir="${d.id}">
-          <iframe class="mockup-iframe" id="mockup-iframe-${d.id}" sandbox="allow-same-origin"></iframe>
+          <iframe class="mockup-iframe" id="mockup-iframe-${d.id}" sandbox="allow-same-origin allow-scripts"></iframe>
           <div class="mockup-card-label">
             <div class="mockup-card-label-name">${d.name}</div>
             <div class="mockup-card-label-desc">${d.desc}</div>
