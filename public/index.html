@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HITL-AI-DLC Router — S3 Technology</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
@@ -4893,43 +4894,100 @@ function showArtifactDelivery(sid, tier, outputs) {
   }
 }
 
-function downloadArtifacts() {
+async function downloadArtifacts() {
   const outputs = window._buildOutputs || buildOutputs;
   const tier = window._buildTier || 'quick_build';
+  const pa = popupAnswers || {};
+  const businessName = pa.business_name || pa.problem || 'project';
+  const slug = businessName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '').replace(/^-+/, '') || 'project';
 
-  // Build file list
-  const files = [];
+  // Generate README
+  const readme = buildReadme(businessName, tier);
 
+  // Try ZIP with JSZip, fall back to raw download if unavailable
+  if (typeof JSZip !== 'undefined') {
+    const zip = new JSZip();
+    const folder = zip.folder(slug + (tier === 'quick_build' ? '-website' : '-spec'));
+
+    if (tier === 'quick_build') {
+      const html = outputs.CDO || outputs.cdo || '';
+      folder.file('index.html', html);
+      if (outputs.CIO || outputs.cio) folder.file('project-summary.md', outputs.CIO || outputs.cio);
+    } else {
+      if (outputs.CTO || outputs.cto) folder.file('technical-scope.md', outputs.CTO || outputs.cto);
+      if (outputs.CDO || outputs.cdo) folder.file('design-direction.md', outputs.CDO || outputs.cdo);
+      if (outputs.CIO || outputs.cio) folder.file('spec-package.md', outputs.CIO || outputs.cio);
+      if (outputs.CQO || outputs.cqo) folder.file('quality-review.md', outputs.CQO || outputs.cqo);
+      if (outputs.CSO || outputs.cso) folder.file('security-review.md', outputs.CSO || outputs.cso);
+    }
+
+    if (outputs.CPO || outputs.cpo) folder.file('project-brief.md', outputs.CPO || outputs.cpo);
+    folder.file('README.txt', readme);
+
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = slug + (tier === 'quick_build' ? '-website.zip' : '-spec.zip');
+    a.click();
+    URL.revokeObjectURL(url);
+  } else {
+    // Fallback: download HTML directly if JSZip didn't load
+    const html = outputs.CDO || outputs.cdo || '';
+    if (html) {
+      const blob = new Blob([html], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = slug + '.html'; a.click();
+      URL.revokeObjectURL(url);
+    }
+  }
+}
+
+function buildReadme(businessName, tier) {
   if (tier === 'quick_build') {
-    if (outputs.cdo || outputs.CDO) files.push({ name: 'website.html', content: outputs.cdo || outputs.CDO });
-    if (outputs.cio || outputs.CIO) files.push({ name: 'project-summary.md', content: outputs.cio || outputs.CIO });
-  } else {
-    if (outputs.cto || outputs.CTO) files.push({ name: 'technical-scope.md', content: outputs.cto || outputs.CTO });
-    if (outputs.cdo || outputs.CDO) files.push({ name: 'design-direction.md', content: outputs.cdo || outputs.CDO });
-    if (outputs.cio || outputs.CIO) files.push({ name: 'spec-package.md', content: outputs.cio || outputs.CIO });
-    if (outputs.cqo || outputs.CQO) files.push({ name: 'quality-review.md', content: outputs.cqo || outputs.CQO });
-    if (outputs.cso || outputs.CSO) files.push({ name: 'security-review.md', content: outputs.cso || outputs.CSO });
+    return `Your Website \u2014 ${businessName}
+${'='.repeat(Math.min(40 + businessName.length, 60))}
+
+What's in this package:
+- index.html \u2014 Your website. Double-click it to preview in any browser.
+- project-summary.md \u2014 Project notes and next steps.
+
+To go live, you have a few options:
+
+1. Email index.html to your web developer \u2014 they can host it in minutes.
+
+2. Contact S3 Technology to host it for you: don@s3technology.io
+   We'll get it live on your domain, connect your contact form, and
+   add Google Analytics so you can see visitor traffic.
+
+3. Drag it into a free hosting service like Netlify Drop (netlify.com/drop).
+
+Questions? don@s3technology.io | S3 Technology, Marion IA
+`;
   }
 
-  if (outputs.cpo || outputs.CPO) files.push({ name: 'project-brief.md', content: outputs.cpo || outputs.CPO });
+  return `Project Spec Package \u2014 ${businessName}
+${'='.repeat(Math.min(40 + businessName.length, 60))}
 
-  if (files.length === 1) {
-    // Single file — download directly
-    const f = files[0];
-    const blob = new Blob([f.content], { type: f.name.endsWith('.html') ? 'text/html' : 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = f.name; a.click();
-    URL.revokeObjectURL(url);
-  } else {
-    // Multiple files — create a simple combined markdown download
-    const combined = files.map(f => `# ${f.name}\n\n${f.content}`).join('\n\n---\n\n');
-    const blob = new Blob([combined], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'project-package.md'; a.click();
-    URL.revokeObjectURL(url);
-  }
+What's in this package:
+- technical-scope.md \u2014 Technical approach and architecture
+- design-direction.md \u2014 Visual direction and UX narrative
+- spec-package.md \u2014 PRD, feature specs, glossary, risk log, roadmap
+- quality-review.md \u2014 Quality gate review
+- security-review.md \u2014 Security and compliance assessment
+- project-brief.md \u2014 Strategic project summary
+
+Next steps:
+
+1. Review the spec package with your team.
+
+2. Contact S3 Technology to start building: don@s3technology.io
+   Our team picks up exactly where this spec leaves off \u2014
+   design, development, and delivery.
+
+Questions? don@s3technology.io | S3 Technology, Marion IA
+`;
 }
 
 function requestMaintenance() {
