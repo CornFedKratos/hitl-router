@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { sendNotification } from './notify.mjs';
 
 const supabase = createClient(
   process.env.SUPABASE_URL || 'https://ttvhafsvfhsanyucmcuw.supabase.co',
@@ -69,7 +70,23 @@ export default async (req) => {
       }
     }
 
-    // TODO (HIT-20): Send email notification to Don here
+    // HIT-20: Notify Don of human-led request
+    sendNotification('human_led', {
+      session_id,
+      name: name || '',
+      email: email || '',
+      problem: problem || '',
+      message: message || '',
+    });
+
+    // HIT-22: Send confirmation to lead
+    if (email) {
+      sendNotification('phase0_complete_human_led', {
+        session_id,
+        lead_email: email,
+        problem: problem || '',
+      });
+    }
 
     return new Response(JSON.stringify({ ok: true }), {
       status: 200,

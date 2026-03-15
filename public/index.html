@@ -1936,15 +1936,91 @@ function dismissOnboarding() {
 }
 
 // ── Auto-route returning orchestrators (HIT-29 stub) ──
-(function checkReturningUser() {
+// ── HIT-21: Check for resume token in URL ──
+(function checkResumeLink() {
+  const resumeToken = new URLSearchParams(location.search).get('resume');
+  if (resumeToken) {
+    resumeSession(resumeToken);
+    return; // Skip other checks — resume takes priority
+  }
+
+  // Existing: auto-route returning orchestrators (HIT-29 stub)
   const token = localStorage.getItem('hitl_session_token');
   if (token) {
-    // HIT-29 builds the full resume flow — for now, skip gate + onboarding
     userType = 'orchestrator';
     document.getElementById('user-type-gate').style.display = 'none';
     showEntryToggle();
   }
 })();
+
+async function resumeSession(token) {
+  // Hide gate, show loading
+  document.getElementById('user-type-gate').style.display = 'none';
+
+  try {
+    const res = await fetch(`/api/resume?token=${encodeURIComponent(token)}`);
+
+    if (res.status === 410) {
+      // Expired
+      document.getElementById('starters').style.display = '';
+      document.getElementById('starters-title').textContent = 'Your session has expired.';
+      document.getElementById('starters-subtitle').textContent = 'Sessions are saved for 7 days. Start a new one below.';
+      return;
+    }
+
+    if (!res.ok) throw new Error('Session not found');
+
+    const { session } = await res.json();
+
+    // Set state from resumed session
+    sessionId = session.id;
+    userType = session.user_type || 'lead';
+
+    // Pre-fill popup answers from partial_answers or structured fields
+    if (session.partial_answers) {
+      popupAnswers = { ...session.partial_answers };
+    }
+    if (session.problem && !popupAnswers.problem) popupAnswers.problem = session.problem;
+    if (session.solution && !popupAnswers.solution) popupAnswers.solution = session.solution;
+    if (session.audience && !popupAnswers.audience) popupAnswers.audience = session.audience;
+
+    // Pre-fill lead data
+    popupLeadData = {
+      name: session.lead_name || '',
+      email: session.lead_email || '',
+      consent: true, // Already captured
+    };
+    popupSessionCreated = true;
+
+    // Open popup at next unanswered question
+    popupScreens = getActiveScreens();
+
+    // Find the first unanswered question (skip lead-only preamble screens)
+    let resumeStep = 0;
+    for (let i = 0; i < popupScreens.length; i++) {
+      const s = popupScreens[i];
+      if (s.type === 'info' || s.type === 'lead-capture') {
+        resumeStep = i + 1; // Skip preamble
+        continue;
+      }
+      if (s.type === 'question' && !popupAnswers[s.id]) {
+        resumeStep = i;
+        break;
+      }
+      if (s.type === 'question' && popupAnswers[s.id]) {
+        resumeStep = i + 1; // Already answered, advance
+      }
+    }
+
+    popupStep = Math.min(resumeStep, popupScreens.length - 1);
+    document.getElementById('popup-overlay').classList.add('visible');
+    renderPopupStep();
+  } catch (err) {
+    // Fallback to normal entry
+    console.error('Resume failed:', err);
+    document.getElementById('user-type-gate').style.display = '';
+  }
+}
 
 // ── Skip to chat (entry toggle) ──
 function skipToChat() {

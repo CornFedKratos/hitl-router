@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { sendNotification } from './notify.mjs';
 
 const supabase = createClient(
   process.env.SUPABASE_URL || 'https://ttvhafsvfhsanyucmcuw.supabase.co',
@@ -56,6 +57,23 @@ export default async (req) => {
       return new Response(JSON.stringify({ error: error.message }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // HIT-20: Notify Don of abandoned session
+    const { data: session } = await supabase
+      .from('sessions')
+      .select('lead_name, lead_email, problem')
+      .eq('id', session_id)
+      .single();
+
+    if (session?.lead_email) {
+      sendNotification('lead_abandoned', {
+        session_id,
+        lead_name: session.lead_name,
+        lead_email: session.lead_email,
+        problem: session.problem,
+        partial_answers,
       });
     }
 

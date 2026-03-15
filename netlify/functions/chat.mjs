@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 import { SKILLS } from './skills.mjs';
+import { sendNotification } from './notify.mjs';
 
 // ── Environment ──
 
@@ -268,6 +269,8 @@ async function createSession(opts = {}) {
     row.lead_email = opts.lead_email;
     row.consent_given = true;
     row.consent_given_at = new Date().toISOString();
+    // HIT-21: Generate resume token
+    row.resume_token = crypto.randomUUID();
   }
   // Source attribution (HIT-36)
   if (opts.source_utm_source) row.source_utm_source = opts.source_utm_source;
@@ -278,10 +281,25 @@ async function createSession(opts = {}) {
   const { data, error } = await supabase
     .from('sessions')
     .insert(row)
-    .select('id')
+    .select('id, resume_token')
     .single();
 
   if (error) throw new Error(`Failed to create session: ${error.message}`);
+
+  // HIT-20: Notify Don of new lead + HIT-21: Send resume link to lead
+  if (opts.lead_email && opts.consent_given) {
+    sendNotification('lead_captured', {
+      session_id: data.id,
+      lead_name: opts.lead_name,
+      lead_email: opts.lead_email,
+    });
+    sendNotification('resume_link', {
+      lead_email: opts.lead_email,
+      lead_name: opts.lead_name,
+      resume_token: data.resume_token,
+    });
+  }
+
   return data.id;
 }
 
@@ -363,6 +381,24 @@ async function completePhase0(sessionId, metadata, tierData) {
     summary: 'Feasibility Assessment — Go Decision Confirmed',
     details: `Go decision confirmed by orchestrator.\nProblem: ${metadata.problem}\nSolution: ${metadata.solution}\nAudience: ${metadata.audience}`,
   });
+
+  // HIT-22: Send confirmation email to lead
+  const { data: session } = await supabase
+    .from('sessions')
+    .select('lead_email, human_led')
+    .eq('id', sessionId)
+    .single();
+
+  if (session?.lead_email) {
+    const emailType = session.human_led ? 'phase0_complete_human_led' : 'phase0_complete';
+    sendNotification(emailType, {
+      session_id: sessionId,
+      lead_email: session.lead_email,
+      problem: metadata.problem,
+      solution: metadata.solution,
+      audience: metadata.audience,
+    });
+  }
 }
 
 // ── Netlify function handler ──
