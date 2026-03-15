@@ -1886,6 +1886,13 @@
           </div>
         </div>
       </div>
+      <!-- HIT-59: Document upload entry point -->
+      <div style="text-align:center;margin-top:16px;">
+        <label style="font-size:13px;color:var(--muted);cursor:pointer;text-decoration:none;">
+          Already have a brief or RFP? <span style="color:var(--blue);">Upload your document &rarr;</span>
+          <input type="file" id="rfp-upload-gate" accept=".txt,.md,.docx,.pdf" style="display:none;" onchange="handleRfpUpload(this.files[0])">
+        </label>
+      </div>
     </div>
 
     <!-- Entry Path Toggle (hidden until user type selected) -->
@@ -2166,6 +2173,10 @@
   <!-- Input -->
   <div class="input-area">
     <div class="input-wrapper">
+      <label style="cursor:pointer;display:flex;align-items:center;padding:0 4px;color:var(--muted);font-size:18px;" title="Upload a document">
+        &#128206;
+        <input type="file" id="rfp-upload-chat" accept=".txt,.md,.docx,.pdf" style="display:none;" onchange="handleRfpUpload(this.files[0])">
+      </label>
       <textarea class="input-field" id="input" placeholder="Describe what you're building..." rows="1"
         onkeydown="handleKeydown(event)" oninput="autoResize(this)"></textarea>
       <button class="send-btn" id="send-btn" onclick="sendMessage()">Send</button>
@@ -2232,6 +2243,268 @@ const sourceAttribution = {
 };
 
 // ── User type selection ──
+// ── HIT-59: Document upload ──
+async function handleRfpUpload(file) {
+  if (!file) return;
+
+  const ext = file.name.toLowerCase().split('.').pop();
+  if (!['txt', 'md', 'docx', 'pdf'].includes(ext)) {
+    alert('Unsupported file type. Please upload .txt, .md, .docx, or .pdf');
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    alert('File too large. Maximum size is 10MB.');
+    return;
+  }
+
+  // Hide gate, show loading
+  document.getElementById('need-gate').style.display = 'none';
+  document.getElementById('starters').style.display = 'none';
+
+  // Show a loading message in chat
+  const loadingMsg = addMessage('agent', '**Reading your document...** Extracting project details from ' + escapeHtml(file.name), 'CPO');
+
+  const formData = new FormData();
+  formData.append('file', file);
+  if (sessionId) formData.append('session_id', sessionId);
+
+  try {
+    const res = await fetch('/api/parse-rfp', {
+      method: 'POST',
+      body: formData,
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || data.fallback) {
+      // Extraction failed — fall back to normal flow
+      loadingMsg.querySelector('.message-content').innerHTML = renderMarkdown(
+        '**Could not extract from document.** ' + (data.error || 'Let\u2019s go through the questions instead.')
+      );
+      document.getElementById('need-gate').style.display = '';
+      return;
+    }
+
+    const extracted = data.extracted || {};
+    const confidence = data.confidence || {};
+    const tierSignal = data.tier_signal || 'launchpad';
+    const missingCount = data.missing_count || 0;
+
+    // Map extracted fields to popupAnswers
+    const fieldMap = {
+      business_name: 'business_name',
+      audience: 'audience',
+      goal: 'goal',
+      feeling: 'feeling',
+      style_notes: 'style',
+      problem: 'problem',
+      solution: 'solution',
+      timeline: 'timeline',
+      stakeholders: 'stakeholders',
+      existing_systems: 'existing_systems',
+    };
+
+    for (const [extractKey, answerKey] of Object.entries(fieldMap)) {
+      if (extracted[extractKey]) {
+        popupAnswers[answerKey] = extracted[extractKey];
+      }
+    }
+
+    // Determine need type from content
+    if (extracted.feeling || extracted.style_notes || (extracted.goal && !extracted.problem)) {
+      needType = 'design';
+      userType = 'lead';
+    } else {
+      needType = 'technology_new';
+      userType = 'lead';
+    }
+
+    // Update summary panel
+    updateSummaryPanel();
+    setSummaryStatus('Extracted from document');
+
+    if (missingCount === 0) {
+      // High confidence — skip to mockups
+      loadingMsg.querySelector('.message-content').innerHTML = renderMarkdown(
+        '**Got everything we need from your document.** Generating your directions now.'
+      );
+
+      // Create session if needed, write answers, trigger mockups
+      await ensureSessionAndWriteAnswers(tierSignal);
+      triggerMockups(sessionId);
+
+    } else if (missingCount <= 2) {
+      // Medium confidence — show confirmation with missing fields
+      const missingFields = Object.entries(confidence)
+        .filter(([k, v]) => v === 'missing' && fieldMap[k])
+        .map(([k]) => k);
+
+      loadingMsg.querySelector('.message-content').innerHTML = renderMarkdown(
+        '**Found most of what we need.** Just a couple of quick questions...'
+      );
+      showRfpConfirmation(extracted, confidence, missingFields, tierSignal);
+
+    } else {
+      // Low confidence — pre-fill popup with what was found
+      loadingMsg.querySelector('.message-content').innerHTML = renderMarkdown(
+        '**We found some details in your document.** Let\u2019s fill in the rest together.'
+      );
+      // Open popup flow — answers already pre-filled in popupAnswers
+      openPopupFlow();
+    }
+  } catch (err) {
+    loadingMsg.querySelector('.message-content').innerHTML = renderMarkdown(
+      '**Something went wrong reading your document.** Let\u2019s go through the questions instead.'
+    );
+    document.getElementById('need-gate').style.display = '';
+    console.error('RFP upload failed:', err);
+  }
+}
+
+async function ensureSessionAndWriteAnswers(tierSignal) {
+  if (!sessionId) {
+    // Create session via chat endpoint with a system message
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: '[Document uploaded — session initialized]',
+        user_type: userType,
+        need_type: needType,
+      }),
+    });
+    // Read the stream to get session ID
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop() || '';
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const parsed = JSON.parse(line.slice(6));
+          if (parsed.type === 'meta') sessionId = parsed.session_id;
+        } catch {}
+      }
+    }
+  }
+
+  if (sessionId) {
+    // Write partial answers and tier
+    await fetch('/api/qualify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session_id: sessionId,
+        partial_answers: popupAnswers,
+      }),
+    });
+
+    // Write engagement tier
+    const tierMap = { quick_build: 'quick_build', launchpad: 'launchpad', full_engagement: 'full_engagement' };
+    if (tierSignal && tierMap[tierSignal]) {
+      await fetch('/api/qualify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: sessionId,
+          ai_qualified: true,
+        }),
+      });
+    }
+  }
+}
+
+function showRfpConfirmation(extracted, confidence, missingFields, tierSignal) {
+  const overlay = document.getElementById('popup-overlay');
+  const content = document.getElementById('popup-content');
+  const progress = document.getElementById('popup-progress');
+  const escape = overlay.querySelector('.popup-escape');
+
+  progress.style.display = 'none';
+  escape.style.display = 'none';
+
+  const fieldLabels = {
+    business_name: 'Business', audience: 'Audience', goal: 'Goal',
+    feeling: 'Brand feeling', style_notes: 'Style notes', problem: 'Problem',
+    solution: 'Solution', timeline: 'Timeline', stakeholders: 'Stakeholders',
+    existing_systems: 'Existing systems',
+  };
+
+  let foundHtml = '';
+  let missingHtml = '';
+
+  for (const [key, label] of Object.entries(fieldLabels)) {
+    if (extracted[key] && confidence[key] !== 'missing') {
+      foundHtml += `<div style="padding:4px 0;"><span style="color:#6EE7B7;">&#10003;</span> <strong>${label}:</strong> ${escapeHtml(extracted[key])}</div>`;
+    }
+  }
+
+  for (const key of missingFields) {
+    const label = fieldLabels[key] || key;
+    missingHtml += `
+      <div style="padding:6px 0;">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">&#10007; ${label} — not found in document</div>
+        <input class="popup-input" id="rfp-missing-${key}" type="text" placeholder="Enter ${label.toLowerCase()}...">
+      </div>
+    `;
+  }
+
+  content.innerHTML = `
+    <div class="popup-info-title">Here's what we found in your document</div>
+    <div style="margin:16px 0;font-size:13px;line-height:1.8;">${foundHtml}</div>
+    ${missingHtml ? `<div style="margin:16px 0;">${missingHtml}</div>` : ''}
+    <button class="popup-info-cta" onclick="confirmRfpExtraction('${tierSignal}')">
+      ${missingHtml ? 'Looks good \u2014 generate my directions' : 'Looks good \u2014 generate my directions'}
+    </button>
+    <div style="text-align:center;margin-top:12px;">
+      <a onclick="closeRfpConfirmation()" style="font-size:13px;color:var(--muted);text-decoration:none;cursor:pointer;">Let me answer the questions instead</a>
+    </div>
+  `;
+
+  overlay.classList.add('visible');
+}
+
+function confirmRfpExtraction(tierSignal) {
+  // Grab any missing field values the user filled in
+  const missingInputs = document.querySelectorAll('[id^="rfp-missing-"]');
+  missingInputs.forEach(input => {
+    const key = input.id.replace('rfp-missing-', '');
+    const val = input.value.trim();
+    if (val) popupAnswers[key] = val;
+  });
+
+  // Close overlay
+  const overlay = document.getElementById('popup-overlay');
+  const progress = document.getElementById('popup-progress');
+  const escape = overlay.querySelector('.popup-escape');
+  overlay.classList.remove('visible');
+  progress.style.display = '';
+  escape.style.display = '';
+
+  updateSummaryPanel();
+
+  // Create session, write answers, trigger mockups
+  ensureSessionAndWriteAnswers(tierSignal).then(() => {
+    triggerMockups(sessionId);
+  });
+}
+
+function closeRfpConfirmation() {
+  const overlay = document.getElementById('popup-overlay');
+  const progress = document.getElementById('popup-progress');
+  const escape = overlay.querySelector('.popup-escape');
+  overlay.classList.remove('visible');
+  progress.style.display = '';
+  escape.style.display = '';
+  // Open popup flow — answers already pre-filled
+  openPopupFlow();
+}
+
 // ── HIT-44: Need Classification Gate ──
 let needType = null;
 
