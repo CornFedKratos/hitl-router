@@ -30,7 +30,7 @@ export default async (req) => {
     // Token IS the session ID for orchestrators (per HIT-26 delivery)
     const { data: sessions, error } = await supabase
       .from('sessions')
-      .select('id, problem, solution, audience, phase, go_decision, engagement_tier, created_at, expires_at, user_type')
+      .select('id, problem, solution, audience, phase, go_decision, engagement_tier, created_at, expires_at, user_type, need_type, partial_answers, mockup_results, mockup_direction_selected, lead_name, lead_email')
       .eq('id', token)
       .order('created_at', { ascending: false });
 

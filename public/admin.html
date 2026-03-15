@@ -236,6 +236,7 @@
           <th>Source</th>
           <th>Flags</th>
           <th>Date</th>
+          <th></th>
           <th>Notes</th>
         </tr>
       </thead>
@@ -327,6 +328,7 @@ function renderLeads() {
       <td>${esc(lead.source_manual || lead.source_utm_source || '—')}</td>
       <td>${flags.length ? flags.join(' ') : '—'}</td>
       <td style="white-space:nowrap;color:var(--muted);">${date}</td>
+      <td><a href="https://hitl-aidlc.s3technology.io?session=${lead.id}" target="_blank" rel="noopener" style="font-size:11px;color:var(--blue);text-decoration:none;">Re-enter</a></td>
       <td><textarea class="notes-field" rows="1" placeholder="Add note..." onblur="updateNotes('${lead.id}', this.value)">${esc(lead.lead_notes || '')}</textarea></td>
     </tr>`;
   }).join('');

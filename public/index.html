@@ -2590,6 +2590,13 @@ function dismissOnboarding() {
     return;
   }
 
+  // HIT-56: Direct session re-entry by ID
+  const sessionParam = params.get('session');
+  if (sessionParam) {
+    reenterSession(sessionParam);
+    return;
+  }
+
   // HIT-29: Returning orchestrator recognition
   const token = localStorage.getItem('hitl_session_token');
   if (token) {
@@ -2617,6 +2624,80 @@ async function recoverSession(token) {
   } catch (err) {
     console.error('Recovery failed:', err);
     document.getElementById('need-gate').style.display = '';
+  }
+}
+
+// ── HIT-56: Direct session re-entry ──
+async function reenterSession(sid) {
+  document.getElementById('need-gate').style.display = 'none';
+
+  try {
+    const res = await fetch(`/api/session?token=${encodeURIComponent(sid)}`);
+    if (!res.ok) throw new Error('Session not found');
+
+    const { sessions } = await res.json();
+    const session = sessions?.[0];
+    if (!session) throw new Error('Session not found');
+
+    // Restore state
+    sessionId = session.id;
+    needType = session.need_type || 'design';
+    userType = session.user_type || 'lead';
+
+    // Restore answers
+    if (session.partial_answers) {
+      popupAnswers = { ...session.partial_answers };
+    }
+    if (session.problem && !popupAnswers.problem) popupAnswers.problem = session.problem;
+    if (session.solution && !popupAnswers.solution) popupAnswers.solution = session.solution;
+    if (session.audience && !popupAnswers.audience) popupAnswers.audience = session.audience;
+
+    // Restore lead data
+    popupLeadData = {
+      name: session.lead_name || '',
+      email: session.lead_email || '',
+      consent: true,
+    };
+    popupSessionCreated = true;
+
+    // Populate summary panel
+    updateSummaryPanel();
+
+    // Clean URL
+    history.replaceState({}, '', location.pathname);
+
+    // Determine jump point
+    if (session.mockup_results?.status === 'complete') {
+      // Mockups already generated — show them
+      mockupData = session.mockup_results;
+      const panel = document.getElementById('mockup-panel');
+      const actions = document.getElementById('mockup-actions');
+      panel.classList.add('visible');
+      renderMockupDirections(mockupData);
+      actions.style.display = 'flex';
+
+      if (mockupData.tier === 'full_engagement') {
+        const refineBtn = document.getElementById('mockup-refine-btn');
+        refineBtn.textContent = 'Let\u2019s refine this together';
+        refineBtn.onclick = mockupContact;
+      }
+
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else if (session.mockup_results?.status === 'failed') {
+      // Failed — show retry panel
+      const panel = document.getElementById('mockup-panel');
+      panel.classList.add('visible');
+      showMockupFailureUI(sid);
+    } else {
+      // No mockups yet — trigger generation
+      triggerMockups(sid);
+    }
+  } catch (err) {
+    console.error('Session re-entry failed:', err);
+    // Graceful fallback — show normal flow with message
+    document.getElementById('need-gate').style.display = '';
+    const title = document.getElementById('need-gate-title');
+    if (title) title.textContent = 'We couldn\u2019t find that session \u2014 let\u2019s start fresh.';
   }
 }
 
