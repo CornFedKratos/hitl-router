@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lead Dashboard — S3 Technology</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0A0A0A;
+      --surface: #141414;
+      --surface2: #1C1C1C;
+      --border: #2A2A2A;
+      --blue: #3B9FE7;
+      --text: #F0F0F0;
+      --muted: #888888;
+      --subtle: #333333;
+    }
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Auth gate ── */
+    .auth-gate {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .auth-gate input {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 16px;
+      color: var(--text);
+      font-size: 14px;
+      width: 280px;
+      outline: none;
+    }
+    .auth-gate input:focus { border-color: var(--blue); }
+    .auth-gate button {
+      background: var(--blue);
+      border: none;
+      border-radius: 8px;
+      padding: 10px 24px;
+      color: white;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .auth-error { color: #F87171; font-size: 13px; display: none; }
+
+    /* ── Dashboard ── */
+    .dashboard { display: none; padding: 24px; max-width: 1200px; margin: 0 auto; }
+    .dashboard.visible { display: block; }
+
+    .dash-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .dash-title {
+      font-size: 20px;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .dash-filters {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .dash-filter {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 12px;
+      color: var(--muted);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .dash-filter:hover { border-color: var(--blue); color: var(--text); }
+    .dash-filter.active { background: rgba(59, 159, 231, 0.1); border-color: var(--blue); color: var(--blue); }
+    .dash-count {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    /* ── Table ── */
+    .lead-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .lead-table th {
+      text-align: left;
+      padding: 10px 12px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      color: var(--muted);
+      font-weight: 500;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    .lead-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .lead-table tr:hover td { background: var(--surface); }
+
+    /* ── Badges ── */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .badge-new { background: #1E3A5F; color: #93C5FD; }
+    .badge-contacted { background: #3B1F6B; color: #C4B5FD; }
+    .badge-closed { background: #064E3B; color: #6EE7B7; }
+    .badge-abandoned { background: #450A0A; color: #FCA5A5; }
+    .badge-completed { background: #064E3B; color: #6EE7B7; }
+    .badge-quick_build { background: #451A03; color: #FCD34D; }
+    .badge-launchpad { background: #1E3A5F; color: #60A5FA; }
+    .badge-full_engagement { background: #3B1F6B; color: #C4B5FD; }
+    .badge-human_led { background: #450A0A; color: #FCA5A5; }
+
+    /* ── Status select ── */
+    .status-select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 4px 8px;
+      color: var(--text);
+      font-size: 12px;
+      outline: none;
+      cursor: pointer;
+    }
+    .status-select:focus { border-color: var(--blue); }
+
+    /* ── Notes ── */
+    .notes-field {
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      padding: 4px 6px;
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 12px;
+      width: 100%;
+      min-width: 140px;
+      resize: none;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .notes-field:hover { border-color: var(--border); }
+    .notes-field:focus { border-color: var(--blue); color: var(--text); background: var(--bg); }
+
+    /* ── Email link ── */
+    .email-link { color: var(--blue); text-decoration: none; }
+    .email-link:hover { text-decoration: underline; }
+
+    /* ── Problem text ── */
+    .problem-text {
+      max-width: 240px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--muted);
+    }
+    .problem-text:hover {
+      white-space: normal;
+      overflow: visible;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .dashboard { padding: 12px; }
+      .lead-table { font-size: 12px; }
+      .lead-table th, .lead-table td { padding: 8px 6px; }
+      .dash-header { flex-direction: column; align-items: flex-start; }
+      .lead-table { display: block; overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Auth Gate -->
+  <div class="auth-gate" id="auth-gate">
+    <div style="font-size:16px;font-weight:600;margin-bottom:4px;">Lead Dashboard</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:8px;">S3 Technology &middot; HITL-AI-DLC</div>
+    <input type="password" id="auth-input" placeholder="Passphrase" onkeydown="if(event.key==='Enter')authenticate()">
+    <button onclick="authenticate()">Enter</button>
+    <div class="auth-error" id="auth-error">Wrong passphrase</div>
+  </div>
+
+  <!-- Dashboard -->
+  <div class="dashboard" id="dashboard">
+    <div class="dash-header">
+      <div class="dash-title">S3 LEADS</div>
+      <div class="dash-filters" id="filters">
+        <div class="dash-filter active" data-filter="all" onclick="setFilter('all')">All</div>
+        <div class="dash-filter" data-filter="new" onclick="setFilter('new')">New</div>
+        <div class="dash-filter" data-filter="contacted" onclick="setFilter('contacted')">Contacted</div>
+        <div class="dash-filter" data-filter="closed" onclick="setFilter('closed')">Closed</div>
+        <div class="dash-filter" data-filter="abandoned" onclick="setFilter('abandoned')">Abandoned</div>
+      </div>
+    </div>
+    <div class="dash-count" id="dash-count"></div>
+    <table class="lead-table">
+      <thead>
+        <tr>
+          <th>Status</th>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Problem</th>
+          <th>Tier</th>
+          <th>Source</th>
+          <th>Flags</th>
+          <th>Date</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody id="lead-tbody"></tbody>
+    </table>
+  </div>
+
+<script>
+let adminKey = '';
+let leads = [];
+let currentFilter = 'all';
+
+async function authenticate() {
+  const input = document.getElementById('auth-input');
+  adminKey = input.value.trim();
+  if (!adminKey) return;
+
+  try {
+    const res = await fetch('/api/admin/leads', {
+      headers: { 'X-Admin-Key': adminKey },
+    });
+
+    if (res.status === 401) {
+      document.getElementById('auth-error').style.display = 'block';
+      return;
+    }
+
+    const data = await res.json();
+    leads = data.leads || [];
+
+    document.getElementById('auth-gate').style.display = 'none';
+    document.getElementById('dashboard').classList.add('visible');
+    renderLeads();
+  } catch (err) {
+    document.getElementById('auth-error').style.display = 'block';
+    document.getElementById('auth-error').textContent = 'Connection error';
+  }
+}
+
+function setFilter(filter) {
+  currentFilter = filter;
+  document.querySelectorAll('.dash-filter').forEach(f => {
+    f.classList.toggle('active', f.dataset.filter === filter);
+  });
+  renderLeads();
+}
+
+function renderLeads() {
+  const tbody = document.getElementById('lead-tbody');
+  let filtered = leads;
+
+  if (currentFilter === 'new') filtered = leads.filter(l => (l.lead_status || 'new') === 'new');
+  else if (currentFilter === 'contacted') filtered = leads.filter(l => l.lead_status === 'contacted');
+  else if (currentFilter === 'closed') filtered = leads.filter(l => l.lead_status === 'closed');
+  else if (currentFilter === 'abandoned') filtered = leads.filter(l => l.abandoned);
+
+  // Sort: new first, then by date descending
+  filtered.sort((a, b) => {
+    const aNew = (a.lead_status || 'new') === 'new' ? 0 : 1;
+    const bNew = (b.lead_status || 'new') === 'new' ? 0 : 1;
+    if (aNew !== bNew) return aNew - bNew;
+    return new Date(b.created_at) - new Date(a.created_at);
+  });
+
+  document.getElementById('dash-count').textContent = `${filtered.length} lead${filtered.length !== 1 ? 's' : ''}`;
+
+  tbody.innerHTML = filtered.map(lead => {
+    const status = lead.lead_status || 'new';
+    const sessionStatus = lead.abandoned ? 'abandoned' : (lead.phase >= 1 ? 'completed' : 'in-progress');
+    const date = new Date(lead.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    const subject = encodeURIComponent('Following up on your HITL-AI-DLC session');
+    const flags = [];
+    if (lead.human_led) flags.push('<span class="badge badge-human_led">Human-Led</span>');
+    if (lead.abandoned) flags.push('<span class="badge badge-abandoned">Abandoned</span>');
+    if (lead.mockup_direction_selected) flags.push('<span class="badge badge-completed">Dir ' + esc(lead.mockup_direction_selected) + '</span>');
+
+    return `<tr>
+      <td>
+        <select class="status-select" onchange="updateStatus('${lead.id}', this.value)">
+          <option value="new" ${status === 'new' ? 'selected' : ''}>New</option>
+          <option value="contacted" ${status === 'contacted' ? 'selected' : ''}>Contacted</option>
+          <option value="closed" ${status === 'closed' ? 'selected' : ''}>Closed</option>
+        </select>
+      </td>
+      <td>${esc(lead.lead_name || '—')}</td>
+      <td>${lead.lead_email ? '<a class="email-link" href="mailto:' + esc(lead.lead_email) + '?subject=' + subject + '">' + esc(lead.lead_email) + '</a>' : '—'}</td>
+      <td><div class="problem-text" title="${esc(lead.problem || '')}">${esc(lead.problem || '—')}</div></td>
+      <td>${lead.engagement_tier ? '<span class="badge badge-' + lead.engagement_tier + '">' + esc(lead.engagement_tier.replace('_', ' ')) + '</span>' : '—'}</td>
+      <td>${esc(lead.source_manual || lead.source_utm_source || '—')}</td>
+      <td>${flags.length ? flags.join(' ') : '—'}</td>
+      <td style="white-space:nowrap;color:var(--muted);">${date}</td>
+      <td><textarea class="notes-field" rows="1" placeholder="Add note..." onblur="updateNotes('${lead.id}', this.value)">${esc(lead.lead_notes || '')}</textarea></td>
+    </tr>`;
+  }).join('');
+}
+
+async function updateStatus(sessionId, status) {
+  // Update local state immediately
+  const lead = leads.find(l => l.id === sessionId);
+  if (lead) lead.lead_status = status;
+
+  try {
+    await fetch('/api/admin/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+      body: JSON.stringify({ session_id: sessionId, lead_status: status }),
+    });
+  } catch (err) {
+    console.error('Failed to update status:', err);
+  }
+}
+
+async function updateNotes(sessionId, notes) {
+  // Update local state
+  const lead = leads.find(l => l.id === sessionId);
+  if (lead) lead.lead_notes = notes;
+
+  try {
+    await fetch('/api/admin/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+      body: JSON.stringify({ session_id: sessionId, lead_notes: notes }),
+    });
+  } catch (err) {
+    console.error('Failed to update notes:', err);
+  }
+}
+
+function esc(str) {
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+</script>
+</body>
+</html>
