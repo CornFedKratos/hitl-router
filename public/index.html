@@ -355,6 +355,134 @@
     .popup-source-option:hover { border-color: rgba(59, 159, 231, 0.3); background: var(--surface2); }
     .popup-source-option.selected { border-color: var(--blue); background: rgba(59, 159, 231, 0.08); }
 
+    /* ── Qualification Gate (HIT-19) ── */
+    .popup-qual-options {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 4px;
+    }
+    .popup-qual-option {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 18px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: left;
+    }
+    .popup-qual-option:hover {
+      border-color: rgba(59, 159, 231, 0.3);
+      background: var(--surface2);
+    }
+    .popup-qual-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+    .popup-qual-label { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 2px; }
+    .popup-qual-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+    .popup-qual-explainer {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px;
+      margin-top: 16px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.6;
+      animation: fadeIn 0.2s ease;
+    }
+    .popup-qual-explainer.visible { display: block; }
+    .popup-qual-explainer h4 { color: var(--text); font-size: 14px; margin-bottom: 6px; }
+    .popup-qual-explainer p { margin-bottom: 10px; }
+    .popup-qual-explainer p:last-child { margin-bottom: 0; }
+
+    /* ── Human-Led Handoff (HIT-19 + HIT-23) ── */
+    .human-led-handoff {
+      display: none;
+      max-width: 520px;
+      margin: 24px auto;
+      padding: 28px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      animation: slideIn 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .human-led-handoff.visible { display: block; }
+    .human-led-handoff-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 10px;
+    }
+    .human-led-handoff-desc {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+    .human-led-handoff-pricing {
+      background: rgba(59, 159, 231, 0.06);
+      border: 1px solid rgba(59, 159, 231, 0.15);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: var(--text);
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+    .human-led-form { display: flex; flex-direction: column; gap: 10px; }
+    .human-led-form input,
+    .human-led-form textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .human-led-form input:focus,
+    .human-led-form textarea:focus { border-color: var(--blue); }
+    .human-led-form input::placeholder,
+    .human-led-form textarea::placeholder { color: var(--subtle); }
+    .human-led-form textarea { resize: none; min-height: 80px; }
+    .human-led-submit {
+      background: var(--blue);
+      border: none;
+      border-radius: 10px;
+      padding: 12px;
+      color: white;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 4px;
+    }
+    .human-led-submit:hover { background: #2E8BC4; }
+    .human-led-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+    .human-led-fallback {
+      text-align: center;
+      margin-top: 14px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .human-led-fallback a { color: var(--blue); text-decoration: none; }
+    .human-led-fallback a:hover { text-decoration: underline; }
+    .human-led-confirmation {
+      text-align: center;
+      padding: 20px 0;
+      animation: fadeIn 0.3s ease;
+    }
+    .human-led-confirmation-icon { font-size: 32px; margin-bottom: 12px; }
+    .human-led-confirmation-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+    .human-led-confirmation-desc { font-size: 14px; color: var(--muted); }
+
     /* ── Social Proof Panel (HIT-34) ── */
     .social-proof {
       display: none;
@@ -1329,6 +1457,27 @@
       </div>
     </div>
 
+    <!-- Human-Led Handoff Panel (HIT-19 + HIT-23) -->
+    <div class="human-led-handoff" id="human-led-handoff">
+      <div id="human-led-handoff-content">
+        <div class="human-led-handoff-title">We'll connect you with our team directly.</div>
+        <div class="human-led-handoff-desc">
+          A human-led engagement means S3 Technology handles everything — strategy, design, development, and delivery. No AI in the loop unless you want it. Our team works with you directly from start to finish.
+        </div>
+        <div class="human-led-handoff-pricing" id="human-led-pricing"></div>
+        <form class="human-led-form" id="human-led-form" onsubmit="submitHumanLedForm(event)">
+          <input type="text" id="hl-name" placeholder="Your name">
+          <input type="email" id="hl-email" placeholder="Your email">
+          <input type="text" id="hl-problem" placeholder="What you're trying to build" readonly>
+          <textarea id="hl-message" placeholder="Anything else you'd like us to know? (optional)"></textarea>
+          <button type="submit" class="human-led-submit" id="hl-submit">Request a Consultation</button>
+        </form>
+        <div class="human-led-fallback">
+          Prefer email directly? <a href="mailto:don@s3technology.io">don@s3technology.io</a>
+        </div>
+      </div>
+    </div>
+
     <!-- Handoff Panel (hidden until Phase 0 complete) -->
     <div class="handoff" id="handoff">
       <div class="handoff-title">Phase 0 complete. You're ready to start building.</div>
@@ -1593,6 +1742,8 @@ const POPUP_SCREENS = [
   { id: 'stakeholders', type: 'question', question: 'Who else is involved?', hint: 'Stakeholders, team members, decision-makers.', placeholder: 'It\u2019s just me / Our CTO and two developers / A board that needs to approve...', required: true },
   { id: 'existing_systems', type: 'question', question: 'Are there existing systems this needs to connect to?', hint: 'Databases, APIs, tools, platforms \u2014 anything that already exists.', placeholder: 'We use Shopify and need it to integrate with... / Starting from scratch', required: true },
   { id: 'constraints', type: 'question', question: 'Any technical constraints we should know about?', hint: 'Hosting requirements, tech stack preferences, compliance needs. Skip if none.', placeholder: 'Must run on AWS / Needs HIPAA compliance / No preference', required: false },
+  // Qualification gate (HIT-19)
+  { id: 'qualification', type: 'qualification' },
   // Lead-only source attribution
   { id: 'source', type: 'source-attribution', leadOnly: true },
 ];
@@ -1695,6 +1846,45 @@ function renderPopupStep() {
     `;
     // Focus email field
     setTimeout(() => document.getElementById('popup-lead-email')?.focus(), 100);
+  } else if (screen.type === 'qualification') {
+    // HIT-19: AI vs. human-led qualification gate
+    contentEl.innerHTML = `
+      <div class="popup-question">One more thing \u2014 how do you feel about AI being involved in your project?</div>
+      <div class="popup-hint">This helps us match you with the right approach.</div>
+      <div class="popup-qual-options">
+        <div class="popup-qual-option" onclick="selectQualification('ai')">
+          <div class="popup-qual-icon">&#9889;</div>
+          <div>
+            <div class="popup-qual-label">AI-assisted is great \u2014 let's move fast</div>
+            <div class="popup-qual-desc">AI agents handle docs, specs, and scaffolding. You stay in control.</div>
+          </div>
+        </div>
+        <div class="popup-qual-option" onclick="selectQualification('human')">
+          <div class="popup-qual-icon">&#129309;</div>
+          <div>
+            <div class="popup-qual-label">I'd prefer a human team</div>
+            <div class="popup-qual-desc">S3 Technology handles everything \u2014 strategy, design, development.</div>
+          </div>
+        </div>
+        <div class="popup-qual-option" onclick="selectQualification('explain')">
+          <div class="popup-qual-icon">&#128161;</div>
+          <div>
+            <div class="popup-qual-label">I'm not sure \u2014 help me understand</div>
+            <div class="popup-qual-desc">See a quick comparison of both approaches.</div>
+          </div>
+        </div>
+      </div>
+      <div class="popup-qual-explainer" id="popup-qual-explainer">
+        <h4>AI-Assisted (HITL-AI-DLC)</h4>
+        <p>Faster delivery, lower cost. AI agents handle documentation, specs, and code scaffolding while you stay in the lead. You review and approve every decision. Best for teams comfortable with AI tools.</p>
+        <h4>Human-Led (S3 Technology)</h4>
+        <p>Premium engagement. Our team handles everything from strategy to delivery \u2014 no AI in the loop unless you want it. Best for organizations that want a dedicated partner or have compliance constraints around AI.</p>
+      </div>
+      <div class="popup-actions">
+        <button class="popup-back" onclick="popupBack()">&#8592; Back</button>
+        <div></div>
+      </div>
+    `;
   } else if (screen.type === 'source-attribution') {
     // HIT-36: Source attribution
     const options = ['Google search', 'LinkedIn', 'Referral from someone', 'EX Squared website', 'S3 Technology', 'Other'];
@@ -1907,6 +2097,93 @@ function switchToChat() {
     input.value = 'Here\u2019s what I have so far:\n' + parts.join('\n');
   }
   input.focus();
+}
+
+// ── HIT-19 Config ──
+const HUMAN_LED_CONFIG = {
+  pricingSignal: 'This is a premium, fully human-led engagement. Investment varies by scope \u2014 our team will walk you through options on the call.',
+};
+
+// ── HIT-19: Qualification gate handler ──
+function selectQualification(choice) {
+  if (choice === 'ai') {
+    // Continue popup flow — write to session later on submit
+    popupAnswers._ai_qualified = true;
+    popupStep++;
+    renderPopupStep();
+  } else if (choice === 'human') {
+    popupAnswers._ai_qualified = false;
+    popupAnswers._human_led = true;
+    // Close popup, show human-led handoff
+    document.getElementById('popup-overlay').classList.remove('visible');
+    clearIdleTimer();
+    showHumanLedHandoff();
+  } else if (choice === 'explain') {
+    // Toggle explainer inline
+    const explainer = document.getElementById('popup-qual-explainer');
+    if (explainer) explainer.classList.toggle('visible');
+  }
+}
+
+function showHumanLedHandoff() {
+  // Pre-fill form from captured data
+  document.getElementById('hl-name').value = popupLeadData.name || '';
+  document.getElementById('hl-email').value = popupLeadData.email || '';
+  document.getElementById('hl-problem').value = popupAnswers.problem || '';
+  document.getElementById('human-led-pricing').textContent = HUMAN_LED_CONFIG.pricingSignal;
+
+  // Show the panel
+  const panel = document.getElementById('human-led-handoff');
+  panel.classList.add('visible');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  // Update session in Supabase
+  if (sessionId) {
+    fetch('/api/qualify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, ai_qualified: false, human_led: true, partial_answers: popupAnswers }),
+    }).catch(err => console.error('Failed to update qualification:', err));
+  }
+}
+
+// ── HIT-23: Human-led contact form (stub submit handler) ──
+async function submitHumanLedForm(e) {
+  e.preventDefault();
+  const btn = document.getElementById('hl-submit');
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+
+  const formData = {
+    session_id: sessionId,
+    name: document.getElementById('hl-name').value.trim(),
+    email: document.getElementById('hl-email').value.trim(),
+    problem: document.getElementById('hl-problem').value.trim(),
+    message: document.getElementById('hl-message').value.trim(),
+  };
+
+  try {
+    const res = await fetch('/api/human-led', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formData),
+    });
+
+    if (!res.ok) throw new Error('Submission failed');
+
+    // Show confirmation
+    document.getElementById('human-led-handoff-content').innerHTML = `
+      <div class="human-led-confirmation">
+        <div class="human-led-confirmation-icon">&#9989;</div>
+        <div class="human-led-confirmation-title">We'll be in touch within 1 business day.</div>
+        <div class="human-led-confirmation-desc">Our team has your project details and will reach out to schedule a conversation.</div>
+      </div>
+    `;
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = 'Request a Consultation';
+    console.error('Human-led form submission failed:', err);
+  }
 }
 
 // ── Abandon detection (HIT-17) ──
@@ -2367,6 +2644,10 @@ async function sendMessage() {
     // Pass source_manual on popup submission (HIT-36)
     if (sourceAttribution.manual) {
       chatBody.source_manual = sourceAttribution.manual;
+    }
+    // Pass qualification on popup submission (HIT-19)
+    if (popupAnswers._ai_qualified !== undefined) {
+      chatBody.ai_qualified = popupAnswers._ai_qualified;
     }
     if (quickbuildMode) {
       chatBody.quickbuild = true;

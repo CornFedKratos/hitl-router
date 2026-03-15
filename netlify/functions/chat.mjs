@@ -296,9 +296,15 @@ export default async (req) => {
     }
 
     // Update source_manual if provided (HIT-36 — collected at end of popup flow)
-    const { source_manual } = body;
-    if (source_manual && sessionId) {
-      await supabase.from('sessions').update({ source_manual }).eq('id', sessionId);
+    const { source_manual, ai_qualified } = body;
+    const sessionUpdates = {};
+    if (source_manual) sessionUpdates.source_manual = source_manual;
+    if (ai_qualified !== undefined) {
+      sessionUpdates.ai_qualified = ai_qualified;
+      sessionUpdates.human_led = !ai_qualified;
+    }
+    if (Object.keys(sessionUpdates).length > 0 && sessionId) {
+      await supabase.from('sessions').update(sessionUpdates).eq('id', sessionId);
     }
 
     // Overlay client-side Quick Build state onto session for prompt building
