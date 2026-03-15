@@ -8,6 +8,12 @@
 [functions."build-engine"]
   timeout = 300
 
+[functions."mockups"]
+  timeout = 300
+
+[functions."prototypes"]
+  timeout = 300
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
