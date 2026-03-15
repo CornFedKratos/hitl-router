@@ -2749,6 +2749,15 @@ function popupNext() {
     sourceAttribution.manual = selectedSourceValue === 'Other' ? (otherText || 'Other') : selectedSourceValue;
   }
 
+  // Sync partial_answers to Supabase if session exists
+  if (popupSessionCreated && sessionId && Object.keys(popupAnswers).length > 0) {
+    fetch('/api/qualify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, partial_answers: popupAnswers }),
+    }).catch(() => {});
+  }
+
   // Advance or submit
   if (popupStep < popupScreens.length - 1) {
     popupStep++;
