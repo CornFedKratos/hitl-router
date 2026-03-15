@@ -1407,12 +1407,23 @@ const sourceAttribution = {
 function selectUserType(type) {
   userType = type;
 
-  // Hide gate, show starters
+  // Hide gate
   document.getElementById('user-type-gate').style.display = 'none';
+
+  // HIT-32: First-time orchestrator onboarding
+  if (type === 'orchestrator' && !localStorage.getItem('hitl_onboarding_seen') && !localStorage.getItem('hitl_session_token')) {
+    showOnboarding();
+    return;
+  }
+
+  showEntryToggle();
+}
+
+function showEntryToggle() {
   document.getElementById('starters').style.display = '';
 
   // Adjust entry toggle framing based on user type
-  if (type === 'lead') {
+  if (userType === 'lead') {
     document.getElementById('starters-title').textContent = 'Let\u2019s figure out what you need.';
     document.getElementById('starters-subtitle').textContent = 'Choose how you\u2019d like to get started.';
     document.getElementById('entry-guided-label').textContent = 'Walk me through step by step';
@@ -1422,12 +1433,62 @@ function selectUserType(type) {
   }
 }
 
+// ── HIT-32: First-time orchestrator onboarding ──
+function showOnboarding() {
+  const overlay = document.getElementById('popup-overlay');
+  const content = document.getElementById('popup-content');
+  const progress = document.getElementById('popup-progress');
+  const escape = overlay.querySelector('.popup-escape');
+
+  // Hide progress bar and escape link — this isn't the question flow
+  progress.style.display = 'none';
+  escape.style.display = 'none';
+
+  content.innerHTML = `
+    <div class="popup-info-title">Welcome to HITL-AI-DLC</div>
+    <div class="popup-info-item">
+      <div class="popup-info-icon">&#9889;</div>
+      <div><strong>HITL-AI-DLC</strong> is a structured way to build software projects with AI \u2014 you stay in the lead, agents do the heavy lifting.</div>
+    </div>
+    <div class="popup-info-item">
+      <div class="popup-info-icon">&#128221;</div>
+      <div>We'll ask you a few questions about your project. At the end, you'll download a launcher that opens your project in Claude Code with everything pre-configured.</div>
+    </div>
+    <div class="popup-info-item">
+      <div class="popup-info-icon">&#9202;</div>
+      <div>About <strong>5 minutes</strong>. All you need is a description of what you're building and who it's for.</div>
+    </div>
+    <button class="popup-info-cta" onclick="dismissOnboarding()">Got it, let's go</button>
+    <div style="text-align:center;margin-top:14px;">
+      <a href="https://github.com/CornFedKratos/HITL-AIDLC#readme" target="_blank" rel="noopener" style="font-size:13px;color:var(--muted);text-decoration:none;">Tell me more \u2192</a>
+    </div>
+  `;
+
+  overlay.classList.add('visible');
+}
+
+function dismissOnboarding() {
+  localStorage.setItem('hitl_onboarding_seen', 'true');
+
+  // Restore popup modal state for future use
+  const overlay = document.getElementById('popup-overlay');
+  const progress = document.getElementById('popup-progress');
+  const escape = overlay.querySelector('.popup-escape');
+  progress.style.display = '';
+  escape.style.display = '';
+
+  overlay.classList.remove('visible');
+  showEntryToggle();
+}
+
 // ── Auto-route returning orchestrators (HIT-29 stub) ──
 (function checkReturningUser() {
   const token = localStorage.getItem('hitl_session_token');
   if (token) {
-    // HIT-29 builds the full resume flow — for now, just skip the gate
-    selectUserType('orchestrator');
+    // HIT-29 builds the full resume flow — for now, skip gate + onboarding
+    userType = 'orchestrator';
+    document.getElementById('user-type-gate').style.display = 'none';
+    showEntryToggle();
   }
 })();
 
