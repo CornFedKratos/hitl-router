@@ -1702,29 +1702,31 @@
 
   <!-- Chat Area -->
   <div class="chat-area" id="chat-area">
-    <!-- User Type Selection Gate -->
-    <div class="user-type-gate" id="user-type-gate">
-      <div class="user-type-title">Welcome — what brings you here today?</div>
-      <div class="user-type-subtitle">This helps us give you the right experience.</div>
-      <div class="user-type-card" onclick="selectUserType('orchestrator')">
-        <div class="user-type-icon">&#9889;</div>
-        <div class="user-type-card-body">
-          <div class="user-type-card-label">I'm starting a project with HITL-AI-DLC</div>
-          <div class="user-type-card-desc">I know the methodology — let's move fast</div>
+    <!-- Need Classification Gate (HIT-44) -->
+    <div class="user-type-gate" id="need-gate">
+      <div class="user-type-title" id="need-gate-title">What do you need?</div>
+      <div class="user-type-subtitle" id="need-gate-subtitle">We'll match you with the right person.</div>
+      <div id="need-gate-cards">
+        <div class="user-type-card" onclick="selectNeed('design')">
+          <div class="user-type-icon">&#127912;</div>
+          <div class="user-type-card-body">
+            <div class="user-type-card-label">I need a website, brand, or online presence</div>
+            <div class="user-type-card-desc">Get found, look professional, attract customers</div>
+          </div>
         </div>
-      </div>
-      <div class="user-type-card" onclick="selectUserType('lead')">
-        <div class="user-type-icon">&#128075;</div>
-        <div class="user-type-card-body">
-          <div class="user-type-card-label">I'm exploring — someone told me about S3 Technology</div>
-          <div class="user-type-card-desc">I'd like to learn what this can do for me</div>
+        <div class="user-type-card" onclick="selectNeed('technology')">
+          <div class="user-type-icon">&#9881;</div>
+          <div class="user-type-card-body">
+            <div class="user-type-card-label">I need to build, fix, or improve something technical</div>
+            <div class="user-type-card-desc">Software, apps, integrations, or debugging</div>
+          </div>
         </div>
-      </div>
-      <div class="user-type-card" onclick="selectUserType('support')">
-        <div class="user-type-icon">&#128295;</div>
-        <div class="user-type-card-body">
-          <div class="user-type-card-label">I need help with an existing project</div>
-          <div class="user-type-card-desc">Something's broken or I need technical guidance</div>
+        <div class="user-type-card" onclick="selectNeed('unknown')">
+          <div class="user-type-icon">&#128161;</div>
+          <div class="user-type-card-body">
+            <div class="user-type-card-label">I'm not sure — help me figure it out</div>
+            <div class="user-type-card-desc">We'll ask a few questions and point you the right way</div>
+          </div>
         </div>
       </div>
     </div>
@@ -2073,33 +2075,209 @@ const sourceAttribution = {
 };
 
 // ── User type selection ──
-function selectUserType(type) {
-  userType = type;
+// ── HIT-44: Need Classification Gate ──
+let needType = null;
 
-  // Hide gate
-  document.getElementById('user-type-gate').style.display = 'none';
+const NEED_GATE_CONFIG = {
+  technology_sub: {
+    title: 'What kind of technology help?',
+    subtitle: 'This helps us connect you with the right person.',
+    cards: [
+      { id: 'technology_new', icon: '&#10133;', label: 'I\u2019m building something new', desc: 'New app, platform, or product' },
+      { id: 'technology_support', icon: '&#128295;', label: 'I need help with something that exists', desc: 'Debugging, fixing, or improving' },
+      { id: 'technology_unknown', icon: '&#10067;', label: 'I don\u2019t know \u2014 I just know something needs to change', desc: 'We\u2019ll figure it out together' },
+    ],
+  },
+  triage_unknown: {
+    questions: [
+      { q: 'Are you trying to fix something that\u2019s broken, or create something that doesn\u2019t exist yet?', options: ['Fix something broken', 'Create something new'] },
+      { q: 'When you imagine the end result \u2014 does it look like a website, or does it work behind the scenes?', options: ['A website or visual presence', 'Software that runs behind the scenes'] },
+      { q: 'What\u2019s your timeline feeling like?', options: ['Urgent \u2014 I need this soon', 'A few months', 'Just exploring'] },
+    ],
+  },
+  triage_tech_unknown: {
+    questions: [
+      { q: 'Is there something broken right now, or are you starting from scratch?', options: ['Something is broken', 'Starting from scratch'] },
+      { q: 'Do you have existing code, a site, or a system?', options: ['Yes \u2014 it exists', 'No \u2014 brand new'] },
+      { q: 'What\u2019s the outcome you need?', options: ['Something works again', 'Something new exists'] },
+    ],
+  },
+};
 
-  // HIT-43: Support path — skip everything, go straight to chat
-  if (type === 'support') {
-    document.getElementById('starters').style.display = 'none';
-    input.placeholder = 'Tell me about your project and what\u2019s going wrong...';
-    showSupportCTA();
-    input.focus();
-    return;
+function selectNeed(need) {
+  const gate = document.getElementById('need-gate');
+
+  if (need === 'design') {
+    needType = 'design';
+    userType = 'lead';
+    gate.style.display = 'none';
+    activateDesignPath();
+  } else if (need === 'technology') {
+    // Show technology sub-cards
+    showTechnologySubCards();
+  } else if (need === 'unknown') {
+    needType = 'unknown';
+    userType = 'lead';
+    showTriageFlow('triage_unknown');
+  } else if (need === 'technology_new') {
+    needType = 'technology_new';
+    userType = 'lead'; // Could be orchestrator — popup will determine
+    gate.style.display = 'none';
+    // Check for HITL-AI-DLC knowledge (first-time onboarding)
+    if (!localStorage.getItem('hitl_onboarding_seen') && !localStorage.getItem('hitl_session_token')) {
+      showOnboarding();
+    } else {
+      showEntryToggle();
+    }
+  } else if (need === 'technology_support') {
+    needType = 'technology_support';
+    userType = 'support';
+    gate.style.display = 'none';
+    activateSupportPath();
+  } else if (need === 'technology_unknown') {
+    needType = 'technology_unknown';
+    userType = 'lead';
+    showTriageFlow('triage_tech_unknown');
   }
-
-  // HIT-32: First-time orchestrator onboarding
-  if (type === 'orchestrator' && !localStorage.getItem('hitl_onboarding_seen') && !localStorage.getItem('hitl_session_token')) {
-    showOnboarding();
-    return;
-  }
-
-  showEntryToggle();
 }
 
-// ── HIT-43: Support path helpers ──
+function showTechnologySubCards() {
+  const config = NEED_GATE_CONFIG.technology_sub;
+  document.getElementById('need-gate-title').textContent = config.title;
+  document.getElementById('need-gate-subtitle').textContent = config.subtitle;
+  document.getElementById('need-gate-cards').innerHTML = config.cards.map(c =>
+    `<div class="user-type-card" onclick="selectNeed('${c.id}')">
+      <div class="user-type-icon">${c.icon}</div>
+      <div class="user-type-card-body">
+        <div class="user-type-card-label">${c.label}</div>
+        <div class="user-type-card-desc">${c.desc}</div>
+      </div>
+    </div>`
+  ).join('');
+}
+
+// ── Triage flows ──
+let triageType = '';
+let triageStep = 0;
+let triageAnswers = [];
+
+function showTriageFlow(type) {
+  triageType = type;
+  triageStep = 0;
+  triageAnswers = [];
+  const gate = document.getElementById('need-gate');
+  renderTriageQuestion(gate);
+}
+
+function renderTriageQuestion(gate) {
+  const config = NEED_GATE_CONFIG[triageType];
+  if (!config || triageStep >= config.questions.length) {
+    resolveTriageResult();
+    return;
+  }
+
+  const q = config.questions[triageStep];
+  document.getElementById('need-gate-title').textContent = q.q;
+  document.getElementById('need-gate-subtitle').textContent = `Question ${triageStep + 1} of ${config.questions.length}`;
+  document.getElementById('need-gate-cards').innerHTML = q.options.map((opt, i) =>
+    `<div class="user-type-card" onclick="answerTriage(${i})">
+      <div class="user-type-card-body">
+        <div class="user-type-card-label">${opt}</div>
+      </div>
+    </div>`
+  ).join('');
+}
+
+function answerTriage(optionIndex) {
+  triageAnswers.push(optionIndex);
+  triageStep++;
+  renderTriageQuestion(document.getElementById('need-gate'));
+}
+
+function resolveTriageResult() {
+  const gate = document.getElementById('need-gate');
+  gate.style.display = 'none';
+
+  if (triageType === 'triage_unknown') {
+    // Answers: [fix/create, visual/behind-scenes, urgent/months/exploring]
+    const isFixing = triageAnswers[0] === 0;
+    const isVisual = triageAnswers[1] === 0;
+
+    if (isVisual && !isFixing) {
+      // "Create something new" + "A website" → Design path
+      needType = 'design';
+      userType = 'lead';
+      activateDesignPath();
+    } else if (isFixing) {
+      // "Fix something broken" → Support path
+      needType = 'technology_support';
+      userType = 'support';
+      activateSupportPath();
+    } else {
+      // "Create" + "Behind the scenes" → Tech new
+      needType = 'technology_new';
+      userType = 'lead';
+      showEntryToggle();
+    }
+  } else if (triageType === 'triage_tech_unknown') {
+    // Answers: [broken/scratch, exists/new, works-again/new-exists]
+    const isBroken = triageAnswers[0] === 0;
+    const hasExisting = triageAnswers[1] === 0;
+
+    if (isBroken || hasExisting) {
+      needType = 'technology_support';
+      userType = 'support';
+      activateSupportPath();
+    } else {
+      needType = 'technology_new';
+      userType = 'lead';
+      showEntryToggle();
+    }
+  }
+}
+
+// ── Design path (Carl leads) ──
+function activateDesignPath() {
+  document.getElementById('starters').style.display = '';
+  document.getElementById('starters-title').textContent = 'Let\u2019s make you look amazing.';
+  document.getElementById('starters-subtitle').textContent = 'Carl, our design lead, will guide you through it.';
+
+  // Show social proof
+  const proof = document.getElementById('social-proof');
+  if (proof) proof.classList.add('visible');
+
+  // Make popup the primary CTA (same as lead path)
+  const grid = document.getElementById('starters-grid');
+  const guided = document.getElementById('entry-guided');
+  const chat = document.getElementById('entry-chat');
+
+  grid.style.gridTemplateColumns = '1fr';
+  grid.style.maxWidth = '400px';
+
+  guided.style.padding = '28px 24px';
+  guided.style.borderColor = 'rgba(59, 159, 231, 0.3)';
+  guided.style.background = 'var(--surface2)';
+  document.getElementById('entry-guided-label').textContent = 'Walk me through it';
+  document.getElementById('entry-guided-label').style.fontSize = '16px';
+  document.getElementById('entry-guided-desc').textContent = 'Carl will ask a few questions about your project';
+
+  chat.className = '';
+  chat.style.cssText = 'text-align:center;padding:8px 0;background:none;border:none;cursor:pointer;';
+  chat.innerHTML = '<a onclick="skipToChat()" style="font-size:13px;color:var(--muted);text-decoration:none;cursor:pointer;">I\u2019d rather just describe it myself \u2192</a>';
+
+  renderStarterChips();
+}
+
+// ── Support path (CTO/Codey leads) ──
+function activateSupportPath() {
+  document.getElementById('starters').style.display = 'none';
+  input.placeholder = 'Tell me about your project and what\u2019s going wrong...';
+  showSupportCTA();
+  input.focus();
+}
+
 function showSupportCTA() {
-  // Persistent "Open in Claude Code" CTA
+  if (document.getElementById('support-cta')) return;
   const cta = document.createElement('div');
   cta.id = 'support-cta';
   cta.style.cssText = 'position:fixed;bottom:100px;right:24px;z-index:50;';
@@ -2139,6 +2317,13 @@ function escalateToSupport() {
   `;
   panel.classList.add('visible');
   panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// Backwards-compatible selectUserType — maps to selectNeed
+function selectUserType(type) {
+  if (type === 'orchestrator') selectNeed('technology_new');
+  else if (type === 'lead') selectNeed('design');
+  else if (type === 'support') selectNeed('technology_support');
 }
 
 function showEntryToggle() {
@@ -2252,13 +2437,13 @@ function dismissOnboarding() {
   const token = localStorage.getItem('hitl_session_token');
   if (token) {
     userType = 'orchestrator';
-    document.getElementById('user-type-gate').style.display = 'none';
+    document.getElementById('need-gate').style.display = 'none';
     checkReturningOrchestrator(token);
   }
 })();
 
 async function recoverSession(token) {
-  document.getElementById('user-type-gate').style.display = 'none';
+  document.getElementById('need-gate').style.display = 'none';
 
   try {
     const res = await fetch(`/api/recover?token=${encodeURIComponent(token)}`);
@@ -2274,7 +2459,7 @@ async function recoverSession(token) {
     checkReturningOrchestrator(session_id);
   } catch (err) {
     console.error('Recovery failed:', err);
-    document.getElementById('user-type-gate').style.display = '';
+    document.getElementById('need-gate').style.display = '';
   }
 }
 
@@ -2439,7 +2624,7 @@ function prefillFromSession(sid) {
 
 async function resumeSession(token) {
   // Hide gate, show loading
-  document.getElementById('user-type-gate').style.display = 'none';
+  document.getElementById('need-gate').style.display = 'none';
 
   try {
     const res = await fetch(`/api/resume?token=${encodeURIComponent(token)}`);
@@ -2502,7 +2687,7 @@ async function resumeSession(token) {
   } catch (err) {
     // Fallback to normal entry
     console.error('Resume failed:', err);
-    document.getElementById('user-type-gate').style.display = '';
+    document.getElementById('need-gate').style.display = '';
   }
 }
 
@@ -4187,6 +4372,7 @@ async function sendMessage() {
     const chatBody = { message: text, session_id: sessionId };
     if (userType && !sessionId) {
       chatBody.user_type = userType;
+      if (needType) chatBody.need_type = needType;
     }
     // Pass source_manual on popup submission (HIT-36)
     if (sourceAttribution.manual) {

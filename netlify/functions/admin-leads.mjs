@@ -29,9 +29,10 @@ export default async (req) => {
   try {
     const { data, error } = await supabase
       .from('sessions')
-      .select('id, lead_name, lead_email, problem, solution, audience, user_type, engagement_tier, tier_confidence, tier_signals, source_manual, source_utm_source, human_led, ai_qualified, abandoned, abandoned_at, mockup_direction_selected, lead_status, lead_status_updated_at, lead_notes, consent_given, partial_answers, phase, created_at')
+      .select('id, lead_name, lead_email, problem, solution, audience, user_type, need_type, engagement_tier, tier_confidence, tier_signals, source_manual, source_utm_source, human_led, ai_qualified, abandoned, abandoned_at, mockup_direction_selected, lead_status, lead_status_updated_at, lead_notes, consent_given, partial_answers, phase, created_at')
       .or('lead_email.not.is.null,user_type.eq.lead')
       .neq('user_type', 'support')
+      .not('need_type', 'eq', 'technology_support')
       .order('created_at', { ascending: false });
 
     if (error) {

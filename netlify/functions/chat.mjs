@@ -44,8 +44,11 @@ function detectRole(message, session) {
   // If Quick Build mode is active, CDO owns the conversation
   if (session?.quickbuild) return 'CDO';
 
-  // HIT-43: Support path always routes to CTO
-  if (session?.user_type === 'support') return 'CTO';
+  // HIT-44: Design path — Carl (CDO) leads the entire conversation
+  if (session?.need_type === 'design') return 'CDO';
+
+  // HIT-43/44: Support path always routes to CTO
+  if (session?.user_type === 'support' || session?.need_type === 'technology_support') return 'CTO';
 
   const msgLower = message.toLowerCase();
 
@@ -238,7 +241,28 @@ When responding to the orchestrator's first message after handoff, or to feedbac
 Project content for this Quick Build:
 ${JSON.stringify(session?.quickbuild_content || {}, null, 2)}` : '';
 
-  const userTypeFraming = session?.user_type === 'support'
+  // HIT-44: Carl (CDO) design path framing
+  const designPathFraming = session?.need_type === 'design' ? `
+
+IMPORTANT — You are Carl, the Chief Design Officer.
+You are a user psychologist disguised as a designer. You see what clients can only dream about and capture what they feel.
+You don't arrange pixels — you translate emotion into visual language.
+
+This visitor needs a website, brand, or online presence. They are NOT technical. They think in terms of
+"how do I look professional" and "how do customers find me" — not in technical jargon.
+
+Your approach:
+- Ask about feeling before form: "How do you want this to feel?"
+- Lead with warmth and approachability — this is someone trusting you with their brand
+- Focus on: audience, aesthetic direction, tone, goals (leads, bookings, credibility)
+- Capture the same Phase 0 information (problem, solution, audience) but frame it as design discovery
+- When you have enough, produce Idea Compression and Feasibility as normal
+- Never mention "orchestrator", "execution agent", or HITL-AI-DLC methodology by name
+- Speak like a creative director, not a framework
+
+You are the owner of this conversation from start to finish.` : '';
+
+  const userTypeFraming = session?.user_type === 'support' || session?.need_type === 'technology_support'
     ? `\n\nIMPORTANT — Support context:
 You are the CTO helping someone with an existing project problem. This is NOT a new project intake.
 - You've seen this problem before. You know which way it goes. You are not interested in learning that lesson again.
@@ -269,7 +293,7 @@ ${skillContent}
 
 You are operating through a web interface called the HITL-AI-DLC Agent Router.
 The orchestrator may be new to the methodology — be helpful, clear, and specific.
-${userTypeFraming}
+${designPathFraming}${userTypeFraming}
 Project context:
 - Problem: ${session?.problem || 'not yet defined'}
 - Solution: ${session?.solution || 'not yet defined'}
@@ -283,9 +307,11 @@ ${phase0Instructions}${cdoQuickBuildInstructions}`;
 
 async function createSession(opts = {}) {
   const row = {};
-  if (opts.userType === 'orchestrator' || opts.userType === 'lead') {
+  if (opts.userType === 'orchestrator' || opts.userType === 'lead' || opts.userType === 'support') {
     row.user_type = opts.userType;
   }
+  // HIT-44: Write need_type
+  if (opts.need_type) row.need_type = opts.need_type;
   // Lead capture fields (HIT-17)
   if (opts.lead_email && opts.consent_given) {
     row.lead_name = opts.lead_name || null;
@@ -449,7 +475,7 @@ export default async (req) => {
     const body = await req.json();
     const { message } = body;
     let { session_id: sessionId, quickbuild: clientQuickbuild, quickbuild_content: clientQbContent, user_type: userType,
-      lead_name, lead_email, consent_given,
+      lead_name, lead_email, consent_given, need_type,
       source_utm_source, source_utm_medium, source_utm_campaign, source_referrer } = body;
 
     if (!message || typeof message !== 'string') {
@@ -463,7 +489,7 @@ export default async (req) => {
     let session;
     if (!sessionId) {
       sessionId = await createSession({
-        userType, lead_name, lead_email, consent_given,
+        userType, lead_name, lead_email, consent_given, need_type,
         source_utm_source, source_utm_medium, source_utm_campaign, source_referrer,
       });
       session = await getSession(sessionId);
