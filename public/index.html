@@ -2114,21 +2114,21 @@
       <div class="prototype-panel-subtitle">Click the one that feels right. The CDO will take it from there.</div>
       <div class="prototype-grid" id="prototype-grid">
         <div class="prototype-card" onclick="selectPrototypeCard('A')">
-          <iframe class="prototype-iframe" id="proto-iframe-A" sandbox="allow-same-origin allow-scripts"></iframe>
+          <iframe class="prototype-iframe" id="proto-iframe-A" sandbox="allow-scripts"></iframe>
           <div class="prototype-label">
             <div class="prototype-label-name">Warm &amp; Trustworthy</div>
             <div class="prototype-label-desc">Soft, approachable, family-friendly</div>
           </div>
         </div>
         <div class="prototype-card" onclick="selectPrototypeCard('B')">
-          <iframe class="prototype-iframe" id="proto-iframe-B" sandbox="allow-same-origin allow-scripts"></iframe>
+          <iframe class="prototype-iframe" id="proto-iframe-B" sandbox="allow-scripts"></iframe>
           <div class="prototype-label">
             <div class="prototype-label-name">Clean &amp; Professional</div>
             <div class="prototype-label-desc">Structured, information-forward</div>
           </div>
         </div>
         <div class="prototype-card" onclick="selectPrototypeCard('C')">
-          <iframe class="prototype-iframe" id="proto-iframe-C" sandbox="allow-same-origin allow-scripts"></iframe>
+          <iframe class="prototype-iframe" id="proto-iframe-C" sandbox="allow-scripts"></iframe>
           <div class="prototype-label">
             <div class="prototype-label-name">Bold &amp; Modern</div>
             <div class="prototype-label-desc">High contrast, premium feel</div>
@@ -2142,7 +2142,7 @@
     <div class="outcome-screen" id="outcome-screen">
       <div class="outcome-title">Your website is ready.</div>
       <div class="outcome-preview">
-        <iframe id="outcome-iframe" sandbox="allow-same-origin allow-scripts"></iframe>
+        <iframe id="outcome-iframe" sandbox="allow-scripts"></iframe>
       </div>
       <div class="outcome-actions">
         <button class="outcome-download" onclick="downloadSite()">Download your website</button>
@@ -4363,9 +4363,10 @@ async function startBuildEngine(sid) {
     });
 
     if (!res.ok) {
-      const err = await res.json();
+      let errMsg = 'Unknown error';
+      try { const err = await res.json(); errMsg = err.error || errMsg; } catch {}
       stopLoadingMessages();
-      output.innerHTML = `<div style="color:#F87171;">Build failed: ${err.error || 'Unknown error'}. <a href="mailto:don@s3technology.io" style="color:var(--blue);">Contact Don</a></div>`;
+      output.innerHTML = `<div style="color:#F87171;">Build failed: ${errMsg}. <a href="mailto:don@s3technology.io" style="color:var(--blue);">Contact Don</a></div>`;
       return;
     }
 
@@ -4622,16 +4623,23 @@ const MOCKUP_POLL_TIMEOUT_MS = 180000; // 3 minutes
 async function triggerMockups(sid) {
   const panel = document.getElementById('mockup-panel');
   const contentEl = document.getElementById('mockup-panel-content');
-  const loading = document.getElementById('mockup-loading');
   const actions = document.getElementById('mockup-actions');
+
+  // Recreate loading element if it was destroyed by failure UI
+  let loading = document.getElementById('mockup-loading');
+  if (!loading) {
+    loading = document.createElement('div');
+    loading.id = 'mockup-loading';
+    loading.className = 'mockup-loading';
+  }
 
   // Show panel below chat, smooth scroll
   panel.classList.add('visible');
+  contentEl.innerHTML = '';
+  contentEl.appendChild(loading);
   loading.style.display = 'block';
   loading.style.transition = 'opacity 0.3s';
   actions.style.display = 'none';
-  contentEl.innerHTML = ''; // Clear any previous failure UI
-  contentEl.appendChild(loading);
   panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   // Start personality loading messages
@@ -4790,7 +4798,7 @@ function renderMockupDirections(data) {
     contentEl.innerHTML = `<div class="mockup-grid" id="mockup-grid">
       ${directions.map(d => `
         <div class="mockup-card" onclick="selectMockupDirection('${d.id}')" data-dir="${d.id}">
-          <iframe class="mockup-iframe" id="mockup-iframe-${d.id}" sandbox="allow-same-origin allow-scripts"></iframe>
+          <iframe class="mockup-iframe" id="mockup-iframe-${d.id}" sandbox="allow-scripts"></iframe>
           <div class="mockup-card-label">
             <div class="mockup-card-label-name">${d.name}</div>
             <div class="mockup-card-label-desc">${d.desc}</div>
