@@ -1720,6 +1720,13 @@
           <div class="user-type-card-desc">I'd like to learn what this can do for me</div>
         </div>
       </div>
+      <div class="user-type-card" onclick="selectUserType('support')">
+        <div class="user-type-icon">&#128295;</div>
+        <div class="user-type-card-body">
+          <div class="user-type-card-label">I need help with an existing project</div>
+          <div class="user-type-card-desc">Something's broken or I need technical guidance</div>
+        </div>
+      </div>
     </div>
 
     <!-- Entry Path Toggle (hidden until user type selected) -->
@@ -2072,6 +2079,15 @@ function selectUserType(type) {
   // Hide gate
   document.getElementById('user-type-gate').style.display = 'none';
 
+  // HIT-43: Support path — skip everything, go straight to chat
+  if (type === 'support') {
+    document.getElementById('starters').style.display = 'none';
+    input.placeholder = 'Tell me about your project and what\u2019s going wrong...';
+    showSupportCTA();
+    input.focus();
+    return;
+  }
+
   // HIT-32: First-time orchestrator onboarding
   if (type === 'orchestrator' && !localStorage.getItem('hitl_onboarding_seen') && !localStorage.getItem('hitl_session_token')) {
     showOnboarding();
@@ -2079,6 +2095,50 @@ function selectUserType(type) {
   }
 
   showEntryToggle();
+}
+
+// ── HIT-43: Support path helpers ──
+function showSupportCTA() {
+  // Persistent "Open in Claude Code" CTA
+  const cta = document.createElement('div');
+  cta.id = 'support-cta';
+  cta.style.cssText = 'position:fixed;bottom:100px;right:24px;z-index:50;';
+  cta.innerHTML = `
+    <a href="https://claude.ai/code" target="_blank" rel="noopener"
+       style="display:inline-flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 14px;color:var(--blue);font-size:12px;font-family:'JetBrains Mono',monospace;text-decoration:none;transition:all 0.2s;">
+      Open in Claude Code &#8599;
+    </a>
+  `;
+  document.body.appendChild(cta);
+}
+
+function escalateToSupport() {
+  if (sessionId) {
+    fetch('/api/qualify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, support_escalation: true }),
+    }).catch(() => {});
+  }
+
+  const panel = document.getElementById('human-led-handoff');
+  const content = document.getElementById('human-led-handoff-content');
+  content.innerHTML = `
+    <div class="human-led-handoff-title">Let me connect you with Don.</div>
+    <div class="human-led-handoff-desc">He can take a deeper look at what's going on and help you sort it out.</div>
+    <form class="human-led-form" id="human-led-form" onsubmit="submitHumanLedForm(event)">
+      <input type="text" id="hl-name" placeholder="Your name">
+      <input type="email" id="hl-email" placeholder="Your email">
+      <input type="text" id="hl-problem" placeholder="What's going wrong?" value="${escapeHtml(popupAnswers?.problem || '')}">
+      <textarea id="hl-message" placeholder="Any details that would help? (error messages, what you tried, etc.)"></textarea>
+      <button type="submit" class="human-led-submit" id="hl-submit">Get Help</button>
+    </form>
+    <div class="human-led-fallback">
+      Or email directly: <a href="mailto:don@s3technology.io">don@s3technology.io</a>
+    </div>
+  `;
+  panel.classList.add('visible');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function showEntryToggle() {

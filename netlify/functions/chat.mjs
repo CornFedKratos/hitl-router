@@ -37,11 +37,24 @@ const INTENT_PATTERNS = [
   { role: 'CTO', patterns: ['architecture', 'annotation', 'collision', 'stack decision', 'merge protocol', 'technical debt'] },
 ];
 
+// HIT-43: Support signal patterns for CPO detection
+const SUPPORT_SIGNALS = ['isn\'t working', 'isnt working', 'broken', 'error', 'bug', 'failing', 'my app', 'our platform', 'production', 'how do i fix', 'not working', 'crash', 'exception', 'stack trace', 'debug'];
+
 function detectRole(message, session) {
   // If Quick Build mode is active, CDO owns the conversation
   if (session?.quickbuild) return 'CDO';
 
+  // HIT-43: Support path always routes to CTO
+  if (session?.user_type === 'support') return 'CTO';
+
   const msgLower = message.toLowerCase();
+
+  // HIT-43: Detect support intent in free-form chat (first message only)
+  if (session?.phase === 0 && !session?.problem) {
+    if (SUPPORT_SIGNALS.some(s => msgLower.includes(s))) {
+      return 'CTO';
+    }
+  }
 
   for (const { role, patterns } of INTENT_PATTERNS) {
     if (patterns.some(p => msgLower.includes(p))) {
@@ -225,7 +238,17 @@ When responding to the orchestrator's first message after handoff, or to feedbac
 Project content for this Quick Build:
 ${JSON.stringify(session?.quickbuild_content || {}, null, 2)}` : '';
 
-  const userTypeFraming = session?.user_type === 'lead'
+  const userTypeFraming = session?.user_type === 'support'
+    ? `\n\nIMPORTANT — Support context:
+You are the CTO helping someone with an existing project problem. This is NOT a new project intake.
+- You've seen this problem before. You know which way it goes. You are not interested in learning that lesson again.
+- Be direct, precise, and technical. Diagnose first, then recommend.
+- Ask targeted questions: "What's the error?", "When did it start?", "What changed recently?"
+- If the problem needs deeper analysis, suggest: "This would be a good one to open in Claude Code for a hands-on look."
+- If you can't resolve it or it needs human judgment, offer to escalate: "Let me connect you with Don — he can take a deeper look at this."
+- Do NOT run Phase 0 intake. Do NOT generate mockups. Do NOT mention pricing or paywall.
+- Keep it focused: diagnose, advise, resolve or escalate.`
+    : session?.user_type === 'lead'
     ? `\n\nIMPORTANT — User context:
 This visitor is exploring S3 Technology for the first time. They may not know what HITL-AI-DLC is.
 - Use a warm, explanatory tone — define methodology terms when you first use them
