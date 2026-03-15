@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project Status — HITL-AI-DLC</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0A0A0A; --surface: #141414; --surface2: #1C1C1C;
+      --border: #2A2A2A; --blue: #3B9FE7; --text: #F0F0F0; --muted: #888888;
+    }
+    html, body {
+      height: 100%; background: var(--bg); color: var(--text);
+      font-family: 'Inter', -apple-system, sans-serif; font-size: 14px; line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    .status-page { max-width: 640px; margin: 0 auto; padding: 40px 24px; }
+    .status-title { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+    .status-subtitle { font-size: 13px; color: var(--muted); margin-bottom: 28px; }
+    .status-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 24px; margin-bottom: 16px;
+    }
+    .status-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .status-value { font-size: 15px; font-weight: 500; color: var(--text); margin-bottom: 16px; }
+    .status-value:last-child { margin-bottom: 0; }
+    .phase-progress { display: flex; gap: 4px; margin: 16px 0; }
+    .phase-block {
+      flex: 1; height: 6px; border-radius: 3px; background: var(--border); transition: background 0.3s;
+    }
+    .phase-block.done { background: #6EE7B7; }
+    .phase-block.active { background: var(--blue); }
+    .phase-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+    .kb-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+    .kb-cell { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px; text-align: center; }
+    .kb-cell-count { font-size: 18px; font-weight: 600; color: var(--blue); }
+    .kb-cell-label { font-size: 10px; color: var(--muted); }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+    .badge-active { background: #1E3A5F; color: #93C5FD; }
+    .badge-expired { background: #450A0A; color: #FCA5A5; }
+    .synced { font-size: 12px; color: var(--muted); text-align: center; margin-top: 16px; }
+    .share-btn {
+      display: block; width: 100%; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px; color: var(--muted); font-size: 13px; cursor: pointer;
+      text-align: center; margin-top: 12px; transition: all 0.2s;
+    }
+    .share-btn:hover { border-color: var(--blue); color: var(--text); }
+    .error-msg { text-align: center; padding: 60px 0; color: var(--muted); font-size: 15px; }
+    .loading { text-align: center; padding: 60px 0; color: var(--muted); }
+    @media (max-width: 640px) { .status-page { padding: 24px 16px; } .kb-grid { grid-template-columns: repeat(2, 1fr); } }
+  </style>
+</head>
+<body>
+  <div class="status-page" id="status-page">
+    <div class="loading" id="loading">Loading project status...</div>
+    <div id="status-content" style="display:none;"></div>
+    <div class="error-msg" id="error-msg" style="display:none;"></div>
+  </div>
+
+<script>
+const PHASE_NAMES = ['Intake', 'Spec', 'Build Plan', 'Execution', 'Delivery', 'Operations'];
+
+(async function loadStatus() {
+  const params = new URLSearchParams(location.search);
+  const sessionId = params.get('session') || location.pathname.split('/status/')[1];
+  const token = params.get('token') || localStorage.getItem('hitl_session_token');
+  const isPublic = params.get('public') === 'true';
+
+  if (!sessionId) {
+    showError('No session specified.');
+    return;
+  }
+
+  try {
+    const url = `/api/status?session=${encodeURIComponent(sessionId)}&token=${encodeURIComponent(token || '')}&public=${isPublic}`;
+    const res = await fetch(url);
+
+    if (!res.ok) {
+      const data = await res.json();
+      showError(data.error || 'Session not found.');
+      return;
+    }
+
+    const data = await res.json();
+    renderStatus(data);
+
+    // Auto-refresh every 60 seconds
+    if (!isPublic) {
+      setInterval(async () => {
+        try {
+          const r = await fetch(url);
+          if (r.ok) {
+            const d = await r.json();
+            renderStatus(d);
+          }
+        } catch {}
+      }, 60000);
+    }
+  } catch (err) {
+    showError('Failed to load status.');
+  }
+})();
+
+function renderStatus(data) {
+  const s = data.session;
+  document.getElementById('loading').style.display = 'none';
+  const content = document.getElementById('status-content');
+  content.style.display = 'block';
+
+  const statusBadge = s.status === 'expired'
+    ? '<span class="badge badge-expired">Expired</span>'
+    : '<span class="badge badge-active">Active</span>';
+
+  let html = `
+    <div class="status-title">${esc(s.problem || 'Project Status')}</div>
+    <div class="status-subtitle">${statusBadge} &middot; Session ${esc(s.id || '')}</div>
+  `;
+
+  // Phase progress
+  html += `<div class="status-card">
+    <div class="status-label">Phase Progress</div>
+    <div class="phase-progress">
+      ${PHASE_NAMES.map((_, i) => {
+        const cls = i < s.phase ? 'done' : i === s.phase ? 'active' : '';
+        return `<div class="phase-block ${cls}"></div>`;
+      }).join('')}
+    </div>
+    <div class="phase-labels">
+      ${PHASE_NAMES.map((name, i) => `<span style="${i === s.phase ? 'color:var(--blue);font-weight:500;' : ''}">${name}</span>`).join('')}
+    </div>
+  </div>`;
+
+  if (!data.public) {
+    // Full details
+    html += `<div class="status-card">
+      <div class="status-label">Go Decision</div>
+      <div class="status-value">${s.go_decision ? 'Confirmed' : 'Pending'}</div>
+      ${s.engagement_tier ? `<div class="status-label">Engagement Tier</div><div class="status-value">${esc(s.engagement_tier.replace('_', ' '))}</div>` : ''}
+      ${s.active_roles ? `<div class="status-label">Active Roles</div><div class="status-value">${s.active_roles.join(', ')}</div>` : ''}
+    </div>`;
+
+    // KB entries
+    if (s.kb_count !== undefined) {
+      html += `<div class="status-card">
+        <div class="status-label">Knowledge Base</div>
+        <div class="status-value">${s.kb_count} entries</div>
+        <div class="kb-grid">
+          ${Object.entries(s.kb_by_phase || {}).map(([phase, count]) => `
+            <div class="kb-cell">
+              <div class="kb-cell-count">${count}</div>
+              <div class="kb-cell-label">Phase ${phase}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>`;
+    }
+
+    // Project details
+    html += `<div class="status-card">
+      <div class="status-label">Problem</div>
+      <div class="status-value">${esc(s.problem || '—')}</div>
+      <div class="status-label">Solution</div>
+      <div class="status-value">${esc(s.solution || '—')}</div>
+      <div class="status-label">Audience</div>
+      <div class="status-value">${esc(s.audience || '—')}</div>
+    </div>`;
+
+    // Share button
+    const shareUrl = location.origin + '/status.html?session=' + s.id + '&public=true';
+    html += `<button class="share-btn" onclick="copyShare('${shareUrl}')">Share progress (public link)</button>`;
+  }
+
+  html += `<div class="synced">Last synced: ${new Date(data.synced_at || Date.now()).toLocaleTimeString()}</div>`;
+
+  content.innerHTML = html;
+}
+
+function showError(msg) {
+  document.getElementById('loading').style.display = 'none';
+  const el = document.getElementById('error-msg');
+  el.style.display = 'block';
+  el.textContent = msg;
+}
+
+function copyShare(url) {
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.querySelector('.share-btn');
+    if (btn) { btn.textContent = 'Link copied!'; setTimeout(() => btn.textContent = 'Share progress (public link)', 2000); }
+  }).catch(() => {});
+}
+
+function esc(str) {
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+</script>
+</body>
+</html>

@@ -1589,7 +1589,7 @@
     <div class="starters" id="starters" style="display: none;">
       <div class="starters-title" id="starters-title">What are you building?</div>
       <div class="starters-subtitle" id="starters-subtitle">Choose how you'd like to get started.</div>
-      <div class="starters-grid" style="grid-template-columns: 1fr 1fr; max-width: 560px; margin: 0 auto;">
+      <div class="starters-grid" id="starters-grid" style="grid-template-columns: 1fr 1fr; max-width: 560px; margin: 0 auto;">
         <div class="starter-card" onclick="openPopupFlow()" id="entry-guided" style="text-align:center;padding:24px 16px;">
           <div style="font-size:24px;margin-bottom:8px;">&#9998;</div>
           <div style="font-weight:600;margin-bottom:4px;" id="entry-guided-label">Guide me through it</div>
@@ -1601,6 +1601,8 @@
           <div style="font-size:12px;color:var(--muted);" id="entry-chat-desc">Free-form chat</div>
         </div>
       </div>
+      <!-- Starter chips (rendered by JS based on user type) -->
+      <div class="starters-grid" id="starter-chips" style="display:none;max-width:560px;margin:12px auto 0;grid-template-columns:1fr;"></div>
 
       <!-- Social Proof Panel (HIT-34 — lead path only) -->
       <div class="social-proof" id="social-proof">
@@ -1708,6 +1710,51 @@
       </div>
 
       <div class="handoff-saved">Session saved for 7 days.</div>
+      <div style="text-align:center;margin-top:12px;">
+        <a onclick="showLauncherFallback()" style="font-size:12px;color:var(--muted);text-decoration:none;cursor:pointer;">Having trouble with the launcher?</a>
+      </div>
+    </div>
+
+    <!-- Launcher Fallback Panel (HIT-31) -->
+    <div class="handoff" id="launcher-fallback" style="border-color:var(--border);">
+      <div class="handoff-title" style="color:var(--text);">Alternative ways to start your project</div>
+
+      <div class="handoff-step">
+        <div class="handoff-step-num">1</div>
+        <div class="handoff-step-body">
+          <div class="handoff-step-title">Manual CLI Install</div>
+          <div class="handoff-step-desc">Install the CLI directly via npm, then start with your session:</div>
+          <div class="handoff-cmd">
+            <code>npm install -g hitl-aidlc</code>
+            <button class="handoff-copy" onclick="copyText('npm install -g hitl-aidlc')">Copy</button>
+          </div>
+          <div class="handoff-cmd">
+            <code id="fallback-cli-cmd">hitl-aidlc start --session [id]</code>
+            <button class="handoff-copy" onclick="copyText(document.getElementById('fallback-cli-cmd').textContent)">Copy</button>
+          </div>
+          <button class="handoff-copy" onclick="selectFallbackOption('cli')" style="margin-top:8px;padding:8px 16px;">I'll use the CLI</button>
+        </div>
+      </div>
+
+      <div class="handoff-step">
+        <div class="handoff-step-num">2</div>
+        <div class="handoff-step-body">
+          <div class="handoff-step-title">Claude.ai Projects</div>
+          <div class="handoff-step-desc">Use HITL-AI-DLC via Claude.ai Projects instead of Claude Code.</div>
+          <div class="handoff-step-desc"><a class="handoff-link" href="https://github.com/CornFedKratos/HITL-AIDLC/blob/main/HITL-AI-DLC/01_aidlc-full-cycle/references/surface-compatibility.md" target="_blank" rel="noopener">Surface compatibility guide</a></div>
+          <div class="handoff-step-desc">Your session ID: <code id="fallback-session-id" style="color:var(--blue);"></code></div>
+          <button class="handoff-copy" onclick="selectFallbackOption('projects')" style="margin-top:8px;padding:8px 16px;">I'll use Claude.ai</button>
+        </div>
+      </div>
+
+      <div class="handoff-step">
+        <div class="handoff-step-num">3</div>
+        <div class="handoff-step-body">
+          <div class="handoff-step-title">Talk to Don</div>
+          <div class="handoff-step-desc">If nothing's working, Don can get you started directly.</div>
+          <button class="handoff-copy" onclick="selectFallbackOption('contact')" style="margin-top:8px;padding:8px 16px;">Get help from Don</button>
+        </div>
+      </div>
     </div>
 
     <!-- Quick Build: Prototype Panel -->
@@ -1885,6 +1932,9 @@ function showEntryToggle() {
     chat.style.cssText = 'text-align:center;padding:8px 0;background:none;border:none;cursor:pointer;';
     chat.innerHTML = '<a onclick="skipToChat()" style="font-size:13px;color:var(--muted);text-decoration:none;cursor:pointer;">I\u2019d rather just type it myself \u2192</a>';
   }
+
+  // HIT-42: Render user-type-aware starter chips
+  renderStarterChips();
 }
 
 // ── HIT-32: First-time orchestrator onboarding ──
@@ -1944,14 +1994,173 @@ function dismissOnboarding() {
     return; // Skip other checks — resume takes priority
   }
 
-  // Existing: auto-route returning orchestrators (HIT-29 stub)
+  // HIT-29: Returning orchestrator recognition
   const token = localStorage.getItem('hitl_session_token');
   if (token) {
     userType = 'orchestrator';
     document.getElementById('user-type-gate').style.display = 'none';
-    showEntryToggle();
+    checkReturningOrchestrator(token);
   }
 })();
+
+async function checkReturningOrchestrator(token) {
+  try {
+    const res = await fetch(`/api/session?token=${encodeURIComponent(token)}`);
+    if (!res.ok) throw new Error('Session lookup failed');
+
+    const { sessions } = await res.json();
+    const active = sessions.filter(s => s.status === 'active' || s.status === 'completed');
+
+    if (active.length > 0) {
+      showWelcomeBack(active, sessions);
+      return;
+    }
+
+    // All expired — clear token, show normal entry
+    localStorage.removeItem('hitl_session_token');
+    showEntryToggle();
+  } catch (err) {
+    console.error('Returning orchestrator check failed:', err);
+    showEntryToggle();
+  }
+}
+
+function showWelcomeBack(activeSessions, allSessions) {
+  const starters = document.getElementById('starters');
+  starters.style.display = '';
+
+  const title = document.getElementById('starters-title');
+  const subtitle = document.getElementById('starters-subtitle');
+  title.textContent = 'Welcome back.';
+  subtitle.textContent = 'You have an active project session.';
+
+  const grid = document.getElementById('starters-grid');
+  grid.style.gridTemplateColumns = '1fr 1fr';
+  grid.style.maxWidth = '560px';
+  grid.innerHTML = `
+    <div class="starter-card" onclick="resumeOrchSession('${activeSessions[0].id}')" style="text-align:center;padding:24px 16px;">
+      <div style="font-size:24px;margin-bottom:8px;">&#9654;</div>
+      <div style="font-weight:600;margin-bottom:4px;">Resume session</div>
+      <div style="font-size:12px;color:var(--muted);">Phase ${activeSessions[0].phase} &middot; ${activeSessions[0].problem ? activeSessions[0].problem.substring(0, 40) + '...' : 'In progress'}</div>
+    </div>
+    <div class="starter-card" onclick="startFreshOrchSession()" style="text-align:center;padding:24px 16px;">
+      <div style="font-size:24px;margin-bottom:8px;">&#10133;</div>
+      <div style="font-weight:600;margin-bottom:4px;">Start a new project</div>
+      <div style="font-size:12px;color:var(--muted);">Begin a fresh Phase 0</div>
+    </div>
+  `;
+
+  // Add "My Projects" link if multiple sessions
+  if (allSessions.length > 1) {
+    const link = document.createElement('div');
+    link.style.cssText = 'text-align:center;margin-top:12px;';
+    link.innerHTML = '<a onclick="showSessionHistory()" style="font-size:13px;color:var(--muted);text-decoration:none;cursor:pointer;">My Projects (' + allSessions.length + ') \u2192</a>';
+    grid.parentNode.insertBefore(link, grid.nextSibling);
+  }
+
+  // Show orchestrator starter chips below
+  renderStarterChips();
+}
+
+function resumeOrchSession(sid) {
+  sessionId = sid;
+  document.getElementById('starters').style.display = 'none';
+  // Drop into chat with session context
+  input.placeholder = 'Continue your project...';
+  input.focus();
+}
+
+function startFreshOrchSession() {
+  // Clear old token — new session will be created on first message
+  sessionId = null;
+  document.getElementById('starters').style.display = 'none';
+  showEntryToggle();
+}
+
+// ── HIT-30: Session history view ──
+let allOrchestratorSessions = [];
+
+async function showSessionHistory() {
+  const token = localStorage.getItem('hitl_session_token');
+  if (!token) return;
+
+  try {
+    const res = await fetch(`/api/session?token=${encodeURIComponent(token)}`);
+    if (!res.ok) return;
+    const { sessions } = await res.json();
+    allOrchestratorSessions = sessions;
+    renderSessionHistory(sessions);
+  } catch (err) {
+    console.error('Failed to load session history:', err);
+  }
+}
+
+function renderSessionHistory(sessions) {
+  const starters = document.getElementById('starters');
+  starters.style.display = '';
+
+  document.getElementById('starters-title').textContent = 'My Projects';
+  document.getElementById('starters-subtitle').textContent = sessions.length + ' session' + (sessions.length !== 1 ? 's' : '');
+
+  const grid = document.getElementById('starters-grid');
+  grid.style.gridTemplateColumns = '1fr';
+  grid.style.maxWidth = '600px';
+
+  grid.innerHTML = sessions.map(s => {
+    const date = new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const statusBadge = s.status === 'expired'
+      ? '<span style="color:#FCA5A5;font-size:11px;">Expired</span>'
+      : s.status === 'completed'
+      ? '<span style="color:#6EE7B7;font-size:11px;">Phase ' + s.phase + '</span>'
+      : '<span style="color:#93C5FD;font-size:11px;">Active</span>';
+
+    const actions = s.status !== 'expired'
+      ? `<button onclick="event.stopPropagation();resumeOrchSession('${s.id}')" style="background:var(--blue);border:none;border-radius:6px;padding:4px 12px;color:white;font-size:12px;cursor:pointer;">Resume</button>`
+      : `<button onclick="event.stopPropagation();prefillFromSession('${s.id}')" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 12px;color:var(--muted);font-size:12px;cursor:pointer;">Start new based on this</button>`;
+
+    return `<div class="starter-card" onclick="toggleSessionSummary('${s.id}')" style="padding:14px 18px;text-align:left;cursor:pointer;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+        <div style="font-weight:600;font-size:14px;">${escapeHtml(s.problem ? s.problem.substring(0, 50) : 'Untitled session')}${s.problem && s.problem.length > 50 ? '...' : ''}</div>
+        ${statusBadge}
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:12px;color:var(--muted);">${date} ${s.engagement_tier ? '&middot; ' + s.engagement_tier.replace('_', ' ') : ''}</div>
+        ${actions}
+      </div>
+      <div id="summary-${s.id}" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:13px;color:var(--muted);line-height:1.6;">
+        <div><strong>Problem:</strong> ${escapeHtml(s.problem || '—')}</div>
+        <div><strong>Solution:</strong> ${escapeHtml(s.solution || '—')}</div>
+        <div><strong>Audience:</strong> ${escapeHtml(s.audience || '—')}</div>
+        <div><strong>Phase:</strong> ${s.phase} &middot; <strong>Go:</strong> ${s.go_decision ? 'Yes' : 'Pending'}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Add "Start new project" button at bottom
+  grid.innerHTML += `<div class="starter-card" onclick="startFreshOrchSession()" style="text-align:center;padding:14px;border-style:dashed;">
+    <div style="font-weight:500;color:var(--muted);">+ Start a new project</div>
+  </div>`;
+
+  // Hide starter chips during history view
+  const chips = document.getElementById('starter-chips');
+  if (chips) chips.style.display = 'none';
+}
+
+function toggleSessionSummary(sid) {
+  const el = document.getElementById('summary-' + sid);
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function prefillFromSession(sid) {
+  const s = allOrchestratorSessions.find(x => x.id === sid);
+  if (!s) return;
+  sessionId = null;
+  popupAnswers = {};
+  if (s.problem) popupAnswers.problem = s.problem;
+  if (s.solution) popupAnswers.solution = s.solution;
+  if (s.audience) popupAnswers.audience = s.audience;
+  openPopupFlow();
+}
 
 async function resumeSession(token) {
   // Hide gate, show loading
@@ -2022,9 +2231,48 @@ async function resumeSession(token) {
   }
 }
 
+// ── Starter chip config (HIT-42) ──
+const STARTER_CHIPS = {
+  lead: [
+    'I need a website for my local business',
+    'I have an idea but don\u2019t know where to start',
+    'I want to understand what AI can do for my project',
+  ],
+  orchestrator: [
+    'I want to start a new project',
+    'I need to scope a feature',
+    'I want to run a Phase 0 on an existing idea',
+    'I need a Go/No-Go decision on something we\u2019re building',
+  ],
+};
+
+function renderStarterChips() {
+  const chips = STARTER_CHIPS[userType] || [];
+  const container = document.getElementById('starter-chips');
+  if (!chips.length || !container) return;
+
+  container.innerHTML = chips.map(text =>
+    `<div class="starter-card" onclick="sendStarter(this)" style="padding:12px 16px;font-size:13px;">${text}</div>`
+  ).join('');
+
+  // For orchestrators, show chips immediately. For leads, only after skipToChat.
+  if (userType === 'orchestrator') {
+    container.style.display = 'grid';
+  }
+}
+
 // ── Skip to chat (entry toggle) ──
 function skipToChat() {
-  document.getElementById('starters').style.display = 'none';
+  // Hide the entry toggle cards but keep starters container
+  document.getElementById('entry-guided').style.display = 'none';
+  document.getElementById('entry-chat').style.display = 'none';
+  document.getElementById('starters-title').textContent = userType === 'lead' ? 'Tell us about your project.' : 'What are you building?';
+  document.getElementById('starters-subtitle').textContent = '';
+
+  // Show starter chips for the chat path
+  const container = document.getElementById('starter-chips');
+  if (container) container.style.display = 'grid';
+
   input.placeholder = 'Describe what you\u2019re building...';
   input.focus();
 }
@@ -2924,6 +3172,63 @@ function showHandoff(sid) {
   document.getElementById('handoff-download').href = `/api/launcher?session=${sid}`;
   handoff.classList.add('visible');
   handoff.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// ── HIT-31: Launcher fallback ──
+function showLauncherFallback() {
+  document.getElementById('fallback-cli-cmd').textContent = `hitl-aidlc start --session ${sessionId}`;
+  document.getElementById('fallback-session-id').textContent = sessionId;
+  const fallback = document.getElementById('launcher-fallback');
+  fallback.classList.add('visible');
+  fallback.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  // Flag in Supabase
+  if (sessionId) {
+    fetch('/api/qualify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, launcher_fallback: true }),
+    }).catch(() => {});
+  }
+}
+
+function selectFallbackOption(option) {
+  if (option === 'contact') {
+    // Route to HIT-23 contact form
+    const panel = document.getElementById('human-led-handoff');
+    const content = document.getElementById('human-led-handoff-content');
+    content.innerHTML = `
+      <div class="human-led-handoff-title">Let's get you started.</div>
+      <div class="human-led-handoff-desc">Don will help you get your project running — no launcher needed.</div>
+      <form class="human-led-form" id="human-led-form" onsubmit="submitHumanLedForm(event)">
+        <input type="text" id="hl-name" placeholder="Your name">
+        <input type="email" id="hl-email" placeholder="Your email">
+        <input type="text" id="hl-problem" placeholder="What you're trying to build" value="${escapeHtml(popupAnswers?.problem || '')}" readonly>
+        <textarea id="hl-message" placeholder="What went wrong with the launcher? (optional)"></textarea>
+        <button type="submit" class="human-led-submit" id="hl-submit">Get Help</button>
+      </form>
+      <div class="human-led-fallback">
+        Or email directly: <a href="mailto:don@s3technology.io">don@s3technology.io</a>
+      </div>
+    `;
+    panel.classList.add('visible');
+    panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  // Record selection
+  if (sessionId) {
+    fetch('/api/qualify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, fallback_option_selected: option }),
+    }).catch(() => {});
+  }
+}
+
+function copyText(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    // Brief visual feedback could go here
+  }).catch(() => {});
 }
 
 // ── HIT-28: Mockup directions ──

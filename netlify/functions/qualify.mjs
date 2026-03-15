@@ -24,7 +24,7 @@ export default async (req) => {
   }
 
   try {
-    const { session_id, ai_qualified, human_led, partial_answers, mockup_direction_selected } = await req.json();
+    const { session_id, ai_qualified, human_led, partial_answers, mockup_direction_selected, launcher_fallback, fallback_option_selected } = await req.json();
 
     if (!session_id) {
       return new Response(JSON.stringify({ error: 'session_id required' }), {
@@ -38,6 +38,8 @@ export default async (req) => {
     if (human_led !== undefined) update.human_led = human_led;
     if (partial_answers) update.partial_answers = partial_answers;
     if (mockup_direction_selected) update.mockup_direction_selected = mockup_direction_selected;
+    if (launcher_fallback !== undefined) update.launcher_fallback = launcher_fallback;
+    if (fallback_option_selected) update.fallback_option_selected = fallback_option_selected;
 
     const { error } = await supabase
       .from('sessions')
