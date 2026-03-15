@@ -45,8 +45,8 @@ export default async (req) => {
 
     // Determine Stripe price ID from env var
     const priceId = tier === 'quick_build'
-      ? process.env.STRIPE_PRICE_TIER1
-      : process.env.STRIPE_PRICE_TIER2;
+      ? process.env.STRIPE_TIER1_PRICE_ID
+      : process.env.STRIPE_TIER2_PRICE_ID;
 
     // Create Stripe Checkout session
     const checkoutConfig = {
