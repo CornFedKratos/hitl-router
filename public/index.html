@@ -4552,6 +4552,316 @@ function copyText(text) {
   }).catch(() => {});
 }
 
+// ── HIT-62: Muse-style design intake ──
+const MUSE_CONFIG = {
+  intro: 'Before I build, I want to make sure this feels exactly right for you. A few quick questions \u2014 takes about 2 minutes.',
+  screens: [
+    {
+      id: 'inspiration',
+      type: 'text',
+      question: 'Are there any websites, brands, or businesses whose look and feel you admire? Even outside your industry.',
+      hint: 'Just names or URLs \u2014 anything that comes to mind.',
+      placeholder: 'Apple.com, my local coffee shop\u2019s branding, Patagonia...',
+    },
+    {
+      id: 'this_or_that',
+      type: 'cards',
+      question: 'Which direction feels more like you?',
+      hint: 'Go with your gut \u2014 there\u2019s no wrong answer.',
+      pairs: [
+        { a: { label: 'Clean & Minimal', desc: 'Like Stripe or Linear \u2014 lots of whitespace, simple, editorial' }, b: { label: 'Warm & Personal', desc: 'Like Mailchimp or Basecamp \u2014 friendly, approachable, human' } },
+        { a: { label: 'Bold & Dramatic', desc: 'Strong contrast, large type, high energy' }, b: { label: 'Soft & Trustworthy', desc: 'Gentle colors, rounded shapes, professional calm' } },
+        { a: { label: 'Photography-led', desc: 'Big images tell the story' }, b: { label: 'Typography-led', desc: 'Words and layout do the heavy lifting' } },
+      ],
+    },
+    {
+      id: 'emotion',
+      type: 'chips',
+      question: 'When someone lands on your site, what\u2019s the first thing you want them to feel?',
+      hint: 'Pick one or two.',
+      options: ['Trust', 'Excitement', 'Relief', 'Safety', 'Confidence', 'Warmth', 'Curiosity', 'Professionalism'],
+    },
+    {
+      id: 'avoid',
+      type: 'text',
+      question: 'Is there anything you\u2019ve seen that you definitely don\u2019t want?',
+      hint: 'A color, a vibe, a style \u2014 anything that feels wrong for you.',
+      placeholder: 'Anything too corporate, clipart, neon colors...',
+    },
+    {
+      id: 'personality',
+      type: 'text',
+      question: 'If your business were a person, how would you describe them in one sentence?',
+      hint: '',
+      placeholder: 'A friendly neighbor who happens to be really good at their job...',
+    },
+  ],
+};
+
+let museStep = 0;
+let museAnswers = {};
+let museIdleTimer = null;
+
+function showMuseIntake(sid) {
+  museStep = 0;
+  museAnswers = {};
+
+  const overlay = document.getElementById('popup-overlay');
+  const content = document.getElementById('popup-content');
+  const progress = document.getElementById('popup-progress');
+  const escape = overlay.querySelector('.popup-escape');
+
+  progress.style.display = 'none';
+  escape.style.display = 'none';
+
+  // Intro screen
+  content.innerHTML = `
+    <div class="popup-info-title">Carl here.</div>
+    <div style="font-size:14px;color:var(--muted);line-height:1.7;margin:16px 0 24px;">${MUSE_CONFIG.intro}</div>
+    <button class="popup-info-cta" onclick="advanceMuse('${sid}')">Let\u2019s do it</button>
+    <div style="text-align:center;margin-top:12px;">
+      <a onclick="skipMuse('${sid}')" style="font-size:13px;color:var(--muted);text-decoration:none;cursor:pointer;">Just build it \u2014 I trust you \u2192</a>
+    </div>
+  `;
+
+  overlay.classList.add('visible');
+
+  // 5-minute auto-proceed timer
+  museIdleTimer = setTimeout(() => {
+    finishMuse(sid);
+  }, 5 * 60 * 1000);
+}
+
+function advanceMuse(sid) {
+  if (museStep >= MUSE_CONFIG.screens.length) {
+    finishMuse(sid);
+    return;
+  }
+
+  const screen = MUSE_CONFIG.screens[museStep];
+  const content = document.getElementById('popup-content');
+
+  const skipLink = `<div style="text-align:center;margin-top:16px;"><a onclick="skipMuse('${sid}')" style="font-size:13px;color:var(--muted);text-decoration:none;cursor:pointer;">Skip \u2014 just build it \u2192</a></div>`;
+
+  if (screen.type === 'text') {
+    content.innerHTML = `
+      <div style="font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:8px;">Carl \u2014 ${museStep + 1} of ${MUSE_CONFIG.screens.length}</div>
+      <div class="popup-question">${screen.question}</div>
+      ${screen.hint ? `<div class="popup-hint">${screen.hint}</div>` : ''}
+      <textarea class="popup-textarea" id="muse-answer" placeholder="${screen.placeholder || ''}">${museAnswers[screen.id] || ''}</textarea>
+      <div class="popup-actions">
+        <button class="popup-back" onclick="musePrev('${sid}')" ${museStep === 0 ? 'disabled' : ''}>&#8592; Back</button>
+        <button class="popup-next" onclick="museNext('${sid}')">${museStep === MUSE_CONFIG.screens.length - 1 ? 'Finish' : 'Next'}</button>
+      </div>
+      ${skipLink}
+    `;
+    setTimeout(() => document.getElementById('muse-answer')?.focus(), 100);
+
+  } else if (screen.type === 'cards') {
+    // This or That — render each pair as two clickable cards
+    let pairsHtml = '';
+    screen.pairs.forEach((pair, pi) => {
+      const selectedA = museAnswers[screen.id + '_' + pi] === 'a';
+      const selectedB = museAnswers[screen.id + '_' + pi] === 'b';
+      pairsHtml += `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+          <div class="popup-source-option${selectedA ? ' selected' : ''}" onclick="museCardSelect(${pi}, 'a')" style="padding:14px;cursor:pointer;">
+            <div style="font-weight:600;margin-bottom:4px;">${pair.a.label}</div>
+            <div style="font-size:12px;color:var(--muted);">${pair.a.desc}</div>
+          </div>
+          <div class="popup-source-option${selectedB ? ' selected' : ''}" onclick="museCardSelect(${pi}, 'b')" style="padding:14px;cursor:pointer;">
+            <div style="font-weight:600;margin-bottom:4px;">${pair.b.label}</div>
+            <div style="font-size:12px;color:var(--muted);">${pair.b.desc}</div>
+          </div>
+        </div>
+      `;
+    });
+
+    content.innerHTML = `
+      <div style="font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:8px;">Carl \u2014 ${museStep + 1} of ${MUSE_CONFIG.screens.length}</div>
+      <div class="popup-question">${screen.question}</div>
+      ${screen.hint ? `<div class="popup-hint">${screen.hint}</div>` : ''}
+      <div id="muse-cards">${pairsHtml}</div>
+      <div class="popup-actions">
+        <button class="popup-back" onclick="musePrev('${sid}')" ${museStep === 0 ? 'disabled' : ''}>&#8592; Back</button>
+        <button class="popup-next" onclick="museNext('${sid}')">Next</button>
+      </div>
+      ${skipLink}
+    `;
+
+  } else if (screen.type === 'chips') {
+    const selected = museAnswers[screen.id] || [];
+    const chipsHtml = screen.options.map(opt =>
+      `<div class="popup-source-option${selected.includes(opt) ? ' selected' : ''}" onclick="museChipToggle('${opt}')" style="display:inline-block;padding:8px 16px;margin:4px;cursor:pointer;">${opt}</div>`
+    ).join('');
+
+    content.innerHTML = `
+      <div style="font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:8px;">Carl \u2014 ${museStep + 1} of ${MUSE_CONFIG.screens.length}</div>
+      <div class="popup-question">${screen.question}</div>
+      ${screen.hint ? `<div class="popup-hint">${screen.hint}</div>` : ''}
+      <div id="muse-chips" style="margin:16px 0;">${chipsHtml}</div>
+      <div class="popup-actions">
+        <button class="popup-back" onclick="musePrev('${sid}')" ${museStep === 0 ? 'disabled' : ''}>&#8592; Back</button>
+        <button class="popup-next" onclick="museNext('${sid}')">Next</button>
+      </div>
+      ${skipLink}
+    `;
+  }
+
+  // Reset idle timer on interaction
+  if (museIdleTimer) { clearTimeout(museIdleTimer); }
+  museIdleTimer = setTimeout(() => finishMuse(sid), 5 * 60 * 1000);
+}
+
+function museCardSelect(pairIndex, choice) {
+  const screen = MUSE_CONFIG.screens[museStep];
+  museAnswers[screen.id + '_' + pairIndex] = choice;
+  // Re-render to show selection
+  const sid = sessionId;
+  advanceMuse(sid);
+}
+
+function museChipToggle(opt) {
+  const screen = MUSE_CONFIG.screens[museStep];
+  let selected = museAnswers[screen.id] || [];
+  if (selected.includes(opt)) {
+    selected = selected.filter(s => s !== opt);
+  } else {
+    if (selected.length < 2) selected.push(opt);
+  }
+  museAnswers[screen.id] = selected;
+  // Re-render chips
+  const chips = document.querySelectorAll('#muse-chips .popup-source-option');
+  chips.forEach(chip => {
+    chip.classList.toggle('selected', selected.includes(chip.textContent));
+  });
+}
+
+function museNext(sid) {
+  const screen = MUSE_CONFIG.screens[museStep];
+
+  // Save current answer
+  if (screen.type === 'text') {
+    const val = document.getElementById('muse-answer')?.value.trim() || '';
+    if (val) museAnswers[screen.id] = val;
+  }
+  // Cards and chips are saved on selection
+
+  museStep++;
+  if (museStep >= MUSE_CONFIG.screens.length) {
+    finishMuse(sid);
+  } else {
+    advanceMuse(sid);
+  }
+}
+
+function musePrev(sid) {
+  if (museStep <= 0) return;
+  const screen = MUSE_CONFIG.screens[museStep];
+  if (screen?.type === 'text') {
+    museAnswers[screen.id] = document.getElementById('muse-answer')?.value.trim() || '';
+  }
+  museStep--;
+  advanceMuse(sid);
+}
+
+function skipMuse(sid) {
+  if (museIdleTimer) { clearTimeout(museIdleTimer); museIdleTimer = null; }
+  const overlay = document.getElementById('popup-overlay');
+  const progress = document.getElementById('popup-progress');
+  const escape = overlay.querySelector('.popup-escape');
+  overlay.classList.remove('visible');
+  progress.style.display = '';
+  escape.style.display = '';
+  startBuildEngine(sid);
+}
+
+async function finishMuse(sid) {
+  if (museIdleTimer) { clearTimeout(museIdleTimer); museIdleTimer = null; }
+
+  const content = document.getElementById('popup-content');
+  content.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);">Carl is putting it all together...</div>';
+
+  // Synthesize design_intent from muse answers
+  const synthesisLines = [];
+  if (museAnswers.inspiration) synthesisLines.push(`Inspiration references: ${museAnswers.inspiration}`);
+
+  // This or That results
+  const totPairs = MUSE_CONFIG.screens.find(s => s.id === 'this_or_that')?.pairs || [];
+  totPairs.forEach((pair, i) => {
+    const pick = museAnswers['this_or_that_' + i];
+    if (pick === 'a') synthesisLines.push(`Prefers: ${pair.a.label} (${pair.a.desc})`);
+    else if (pick === 'b') synthesisLines.push(`Prefers: ${pair.b.label} (${pair.b.desc})`);
+  });
+
+  if (museAnswers.emotion?.length) synthesisLines.push(`Primary emotions: ${museAnswers.emotion.join(', ')}`);
+  if (museAnswers.avoid) synthesisLines.push(`Avoid: ${museAnswers.avoid}`);
+  if (museAnswers.personality) synthesisLines.push(`Brand personality: ${museAnswers.personality}`);
+
+  let designIntent = '';
+
+  if (synthesisLines.length > 0) {
+    // Call Carl to synthesize into a paragraph
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: `Synthesize these design intake answers into a single paragraph of design direction for the CDO to follow when building the website. Write it as instructions to yourself — specific, actionable, no fluff.\n\n${synthesisLines.join('\n')}`,
+          session_id: sid,
+        }),
+      });
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      let fullText = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop() || '';
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const parsed = JSON.parse(line.slice(6));
+            if (parsed.type === 'text') fullText += parsed.text;
+          } catch {}
+        }
+      }
+      designIntent = fullText.replace(/\*\*/g, '').trim();
+    } catch (err) {
+      console.error('Muse synthesis failed:', err);
+      // Use raw answers as fallback
+      designIntent = synthesisLines.join('. ');
+    }
+
+    // Write to Supabase
+    if (sid && designIntent) {
+      fetch('/api/qualify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: sid,
+          design_intent: designIntent,
+          muse_answers: museAnswers,
+        }),
+      }).catch(() => {});
+    }
+  }
+
+  // Close overlay and start build
+  const overlay = document.getElementById('popup-overlay');
+  const progress = document.getElementById('popup-progress');
+  const escape = overlay.querySelector('.popup-escape');
+  overlay.classList.remove('visible');
+  progress.style.display = '';
+  escape.style.display = '';
+
+  startBuildEngine(sid);
+}
+
 // ── HIT-39/40: Build engine + pricing ──
 // ── HIT-57: Paywall config ──
 const PAYWALL_CONFIG = {
@@ -4735,7 +5045,12 @@ async function pollPaymentStatus(sid) {
 
 function onPaymentConfirmed(sid) {
   document.getElementById('paywall-panel').classList.remove('visible');
-  startBuildEngine(sid);
+  // HIT-62: Muse intake before build (design path only)
+  if (needType === 'design') {
+    showMuseIntake(sid);
+  } else {
+    startBuildEngine(sid);
+  }
 }
 
 // Also check URL params for return from Stripe redirect (fallback)

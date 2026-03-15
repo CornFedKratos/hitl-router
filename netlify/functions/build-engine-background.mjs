@@ -106,15 +106,19 @@ TECHNICAL RULES:
 - Semantic HTML5
 
 ${content}
-
+${ctx.design_intent ? `
+=== DESIGN INTENT (from client interview — this is your primary creative direction) ===
+${ctx.design_intent}
+=== END DESIGN INTENT ===
+` : ''}
 REQUIRED SECTIONS (populate with the real data above):
-1. Hero — business name${pa.feeling ? ', reflecting the "' + pa.feeling + '" brand feeling' : ''}
+1. Hero — business name${pa.feeling ? ', reflecting the "' + pa.feeling + '" brand feeling' : ''}${ctx.design_intent ? ' — follow the design intent above for tone and style' : ''}
 2. Services — list each service the business offers (from the data above)
 3. About / Credibility — why customers should trust this business
 4. Contact — form + any provided phone/email
 5. Footer — business name, location if provided
 
-Selected visual direction: ${ctx.direction}
+Selected visual direction: ${ctx.direction}${ctx.design_intent ? '\nDesign intent takes priority over the generic direction name above.' : ''}
 
 Output ONLY the complete HTML. No markdown fences. No explanation.`
         : `You are the CDO creating a design direction for this specific project.
@@ -253,6 +257,7 @@ export default async (req) => {
       partial_answers: session.partial_answers || {},
       lead_name: session.lead_name || '',
       lead_email: session.lead_email || '',
+      design_intent: session.design_intent || '',
     };
 
     const outputs = {};
