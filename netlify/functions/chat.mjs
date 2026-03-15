@@ -65,8 +65,8 @@ const TIER_SIGNALS = {
     { id: 'solo_operator', patterns: ['just me', 'solo', 'one person', 'i am the', 'my own', 'solopreneur', 'freelance'] },
   ],
   launchpad: [
-    { id: 'multiple_stakeholders', patterns: ['team', 'board', 'cto', 'ceo', 'we need', 'our team', 'department', 'committee', 'approval'] },
-    { id: 'existing_systems', patterns: ['integrate', 'api', 'database', 'existing system', 'migrate', 'legacy', 'connect to', 'salesforce', 'shopify', 'erp', 'crm'] },
+    { id: 'multiple_stakeholders', patterns: ['board', 'cto', 'ceo', 'we need approval', 'multiple decision', 'getting buy-in', 'our executive', 'executive team', 'committee', 'department head'] },
+    { id: 'existing_systems', patterns: ['connects to our', 'integrate with our', 'existing system', 'our current database', 'our platform', 'migrate from', 'legacy system', 'connect to our', 'salesforce', 'erp', 'crm'] },
     { id: 'compliance', patterns: ['compliance', 'hipaa', 'gdpr', 'regulation', 'audit', 'security requirements', 'pci', 'sox'] },
     { id: 'buy_in_needed', patterns: ['buy-in', 'approval', 'executive', 'sign off', 'budget approval', 'stakeholder alignment'] },
     { id: 'ai_integration', patterns: ['ai', 'machine learning', 'automation', 'chatbot', 'nlp', 'model', 'intelligent'] },

@@ -1653,11 +1653,29 @@ function showEntryToggle() {
   // Adjust entry toggle framing based on user type
   if (userType === 'lead') {
     document.getElementById('starters-title').textContent = 'Let\u2019s figure out what you need.';
-    document.getElementById('starters-subtitle').textContent = 'Choose how you\u2019d like to get started.';
+    document.getElementById('starters-subtitle').textContent = 'It takes about 5 minutes.';
+
+    // Make guided flow the primary CTA for leads
+    const grid = document.querySelector('#starters .starters-grid');
+    const guided = document.getElementById('entry-guided');
+    const chat = document.getElementById('entry-chat');
+
+    // Restyle grid to single column, guided is hero
+    grid.style.gridTemplateColumns = '1fr';
+    grid.style.maxWidth = '400px';
+
+    // Guided card becomes a prominent CTA
+    guided.style.padding = '28px 24px';
+    guided.style.borderColor = 'rgba(59, 159, 231, 0.3)';
+    guided.style.background = 'var(--surface2)';
     document.getElementById('entry-guided-label').textContent = 'Walk me through step by step';
-    document.getElementById('entry-guided-desc').textContent = 'We\u2019ll ask a few questions';
-    document.getElementById('entry-chat-label').textContent = 'I\u2019ll describe my idea';
-    document.getElementById('entry-chat-desc').textContent = 'Free-form conversation';
+    document.getElementById('entry-guided-label').style.fontSize = '16px';
+    document.getElementById('entry-guided-desc').textContent = 'We\u2019ll ask a few questions about your project';
+
+    // Chat option becomes a subtle text link
+    chat.className = '';
+    chat.style.cssText = 'text-align:center;padding:8px 0;background:none;border:none;cursor:pointer;';
+    chat.innerHTML = '<a onclick="skipToChat()" style="font-size:13px;color:var(--muted);text-decoration:none;cursor:pointer;">I\u2019d rather just type it myself \u2192</a>';
   }
 }
 
