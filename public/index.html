@@ -3941,13 +3941,17 @@ async function startBuildEngine(sid) {
   panel.classList.add('visible');
   panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-  // Initialize progress bar
   const ROLES = ['CPO', 'CTO', 'CDO', 'CQO', 'CIO', 'CSO'];
   progress.innerHTML = ROLES.map(() => '<div class="build-progress-step"></div>').join('');
 
   buildOutputs = {};
+  startLoadingMessages('build');
+
+  // Show loading in output area
+  output.innerHTML = '<div id="build-loading-msg" style="text-align:center;padding:20px;color:var(--muted);font-size:14px;transition:opacity 0.3s;"></div>';
 
   try {
+    // Trigger background build
     const res = await fetch('/api/build-engine', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -3956,65 +3960,64 @@ async function startBuildEngine(sid) {
 
     if (!res.ok) {
       const err = await res.json();
+      stopLoadingMessages();
       output.innerHTML = `<div style="color:#F87171;">Build failed: ${err.error || 'Unknown error'}. <a href="mailto:don@s3technology.io" style="color:var(--blue);">Contact Don</a></div>`;
       return;
     }
 
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let currentRole = '';
+    // Poll for results — sync progress bar with build_phase
+    let lastPhase = '';
+    for (let i = 0; i < 200; i++) {
+      await new Promise(r => setTimeout(r, 3000));
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+      const statusRes = await fetch(`/api/build-status?session_id=${encodeURIComponent(sid)}`);
+      if (!statusRes.ok) continue;
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
+      const result = await statusRes.json();
 
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        try {
-          const parsed = JSON.parse(line.slice(6));
+      // Sync progress bar with current phase
+      if (result.phase && result.phase !== lastPhase) {
+        lastPhase = result.phase;
+        const phaseIndex = ROLES.findIndex(r => r.toLowerCase() === result.phase);
+        if (phaseIndex >= 0) {
+          const steps = progress.querySelectorAll('.build-progress-step');
+          steps.forEach((s, idx) => {
+            if (idx < phaseIndex) s.className = 'build-progress-step done';
+            else if (idx === phaseIndex) s.className = 'build-progress-step active';
+            else s.className = 'build-progress-step';
+          });
+          stepLabel.textContent = `${ROLES[phaseIndex]} is working...`;
 
-          if (parsed.type === 'handoff') {
-            currentRole = parsed.role;
-            stepLabel.textContent = `${parsed.name} (${parsed.step}/${parsed.total})`;
-
-            // Update progress
-            const steps = progress.querySelectorAll('.build-progress-step');
-            steps.forEach((s, i) => {
-              if (i < parsed.step - 1) s.className = 'build-progress-step done';
-              else if (i === parsed.step - 1) s.className = 'build-progress-step active';
-            });
-
-            // Add handoff marker
-            output.innerHTML += `<div class="build-handoff"><span class="role-badge ${parsed.role}">${parsed.role}</span> ${parsed.name} is working...</div>`;
-            output.innerHTML += `<div class="build-agent-output" id="build-out-${parsed.role}"></div>`;
-            output.scrollTop = output.scrollHeight;
-
-          } else if (parsed.type === 'text') {
-            const el = document.getElementById(`build-out-${parsed.role}`);
-            if (el) {
-              buildOutputs[parsed.role] = (buildOutputs[parsed.role] || '') + parsed.text;
-              el.innerHTML = renderMarkdown(buildOutputs[parsed.role]);
-              output.scrollTop = output.scrollHeight;
-            }
-
-          } else if (parsed.type === 'done') {
-            stepLabel.textContent = 'Build complete';
-            progress.querySelectorAll('.build-progress-step').forEach(s => s.className = 'build-progress-step done');
-            showArtifactDelivery(sid, parsed.tier, parsed.outputs);
-
-          } else if (parsed.type === 'error' || parsed.type === 'agent_error') {
-            output.innerHTML += `<div style="color:#F87171;padding:8px 0;">[${parsed.role || 'System'}] Error: ${parsed.error}</div>`;
+          // Sync build loading messages to current agent
+          const agentMessages = LOADING_MESSAGES.build.filter(m =>
+            m.toLowerCase().includes(ROLES[phaseIndex].toLowerCase())
+          );
+          if (agentMessages.length > 0) {
+            const el = document.getElementById('build-loading-msg') || output.querySelector('div');
+            if (el) el.textContent = agentMessages[0];
           }
-        } catch {}
+        }
+      }
+
+      if (result.status === 'complete') {
+        stopLoadingMessages();
+        stepLabel.textContent = 'Build complete';
+        progress.querySelectorAll('.build-progress-step').forEach(s => s.className = 'build-progress-step done');
+        output.innerHTML = '<div style="text-align:center;padding:20px;color:#6EE7B7;font-size:14px;">Build complete. Your project is ready.</div>';
+        showArtifactDelivery(sid, result.tier, result.outputs);
+        return;
+      }
+
+      if (result.status === 'failed') {
+        throw new Error(result.error || 'Build failed');
       }
     }
+
+    throw new Error('Build timed out');
   } catch (err) {
-    output.innerHTML += `<div style="color:#F87171;">Connection lost. <a href="mailto:don@s3technology.io" style="color:var(--blue);">Contact Don</a></div>`;
+    stopLoadingMessages();
+    output.innerHTML = `<div style="color:#F87171;">Build failed. <a href="mailto:don@s3technology.io" style="color:var(--blue);">Contact Don</a></div>`;
+    console.error('Build engine failed:', err);
   }
 }
 
@@ -4133,59 +4136,155 @@ function requestMaintenance() {
 let mockupData = null;
 let selectedMockupDirection = null;
 
+// ── HIT-46: Loading messages config ──
+const LOADING_MESSAGES = {
+  carl: [
+    'Sketching the first direction...',
+    'Thinking about your audience...',
+    'Finding the right feeling for this...',
+    'Pulling together something clean...',
+    'Working on the color story...',
+    'Making sure it feels like you...',
+    'Almost there \u2014 just getting the details right...',
+    'Laying out three distinct directions...',
+    'Considering what your customers will trust...',
+    'Polishing the final touches...',
+  ],
+  cpo: [
+    'Analyzing your project signals...',
+    'Mapping the opportunity space...',
+    'Structuring the Phase 0 context...',
+    'Synthesizing what you\u2019ve told us...',
+    'Building your project brief...',
+    'Preparing your session summary...',
+  ],
+  cto: [
+    'Reading the stack...',
+    'Tracing the failure path...',
+    'Checking the architecture...',
+    'Scoping the technical approach...',
+    'Mapping the component structure...',
+    'Reviewing the constraints...',
+  ],
+  build: [
+    'The team is assembling...',
+    'CPO is setting the brief...',
+    'CTO is scoping the build...',
+    'CDO is generating the design...',
+    'CQO is reviewing the output...',
+    'CIO is structuring the knowledge...',
+    'CSO is running the security check...',
+    'Packaging your artifacts...',
+  ],
+};
+
+let loadingInterval = null;
+let loadingMsgIndex = 0;
+let loadingMessages = [];
+
+function startLoadingMessages(voiceKey) {
+  loadingMessages = [...(LOADING_MESSAGES[voiceKey] || LOADING_MESSAGES.cpo)];
+  // Shuffle
+  for (let i = loadingMessages.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [loadingMessages[i], loadingMessages[j]] = [loadingMessages[j], loadingMessages[i]];
+  }
+  loadingMsgIndex = 0;
+  updateLoadingMessage();
+  loadingInterval = setInterval(updateLoadingMessage, 2500);
+}
+
+function updateLoadingMessage() {
+  const el = document.getElementById('mockup-loading');
+  if (!el || loadingMsgIndex >= loadingMessages.length) return;
+  el.style.opacity = '0';
+  setTimeout(() => {
+    el.textContent = loadingMessages[loadingMsgIndex];
+    el.style.opacity = '1';
+    loadingMsgIndex++;
+    if (loadingMsgIndex >= loadingMessages.length) loadingMsgIndex = 0;
+  }, 300);
+}
+
+function stopLoadingMessages() {
+  if (loadingInterval) { clearInterval(loadingInterval); loadingInterval = null; }
+}
+
 async function triggerMockups(sid) {
   const panel = document.getElementById('mockup-panel');
   const contentEl = document.getElementById('mockup-panel-content');
   const loading = document.getElementById('mockup-loading');
   const actions = document.getElementById('mockup-actions');
 
+  // Show panel below chat, smooth scroll
   panel.classList.add('visible');
   loading.style.display = 'block';
+  loading.style.transition = 'opacity 0.3s';
   actions.style.display = 'none';
   panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
+  // Start personality loading messages
+  const voice = needType === 'design' ? 'carl' : needType === 'technology_support' ? 'cto' : 'cpo';
+  startLoadingMessages(voice);
+
   try {
+    // Trigger background generation
     const res = await fetch('/api/mockups', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ session_id: sid }),
     });
 
-    if (!res.ok) throw new Error('Failed to generate mockups');
-    mockupData = await res.json();
+    if (!res.ok) throw new Error('Failed to start mockup generation');
 
-    loading.style.display = 'none';
-    renderMockupDirections(mockupData);
-    actions.style.display = 'flex';
+    // Poll for results
+    for (let i = 0; i < 100; i++) {
+      await new Promise(r => setTimeout(r, 3000));
 
-    // Update actions based on tier
-    const refineBtn = document.getElementById('mockup-refine-btn');
-    if (mockupData.tier === 'full_engagement') {
-      refineBtn.textContent = 'Let\u2019s refine this together';
-      refineBtn.onclick = mockupContact;
+      const statusRes = await fetch(`/api/mockup-status?session_id=${encodeURIComponent(sid)}`);
+      if (!statusRes.ok) continue;
+
+      const result = await statusRes.json();
+
+      if (result.status === 'complete') {
+        stopLoadingMessages();
+        mockupData = result;
+        loading.style.display = 'none';
+        renderMockupDirections(mockupData);
+        actions.style.display = 'flex';
+
+        const refineBtn = document.getElementById('mockup-refine-btn');
+        if (mockupData.tier === 'full_engagement') {
+          refineBtn.textContent = 'Let\u2019s refine this together';
+          refineBtn.onclick = mockupContact;
+        }
+
+        if (mockupData.tier === 'full_engagement' && mockupData.calendly_url) {
+          const btn = document.createElement('a');
+          btn.className = 'mockup-calendly'; btn.href = mockupData.calendly_url;
+          btn.target = '_blank'; btn.rel = 'noopener'; btn.textContent = 'Book a call';
+          actions.appendChild(btn);
+        } else if (mockupData.tier === 'full_engagement') {
+          const btn = document.createElement('button');
+          btn.className = 'mockup-calendly'; btn.disabled = true;
+          btn.textContent = 'Book a call (coming soon)';
+          actions.appendChild(btn);
+        }
+
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+
+      if (result.status === 'failed') {
+        throw new Error(result.error || 'Generation failed');
+      }
     }
 
-    // Add Calendly button for Tier 3
-    if (mockupData.tier === 'full_engagement' && mockupData.calendly_url) {
-      const calendlyBtn = document.createElement('a');
-      calendlyBtn.className = 'mockup-calendly';
-      calendlyBtn.href = mockupData.calendly_url;
-      calendlyBtn.target = '_blank';
-      calendlyBtn.rel = 'noopener';
-      calendlyBtn.textContent = 'Book a call';
-      actions.appendChild(calendlyBtn);
-    } else if (mockupData.tier === 'full_engagement' && !mockupData.calendly_url) {
-      const calendlyBtn = document.createElement('button');
-      calendlyBtn.className = 'mockup-calendly';
-      calendlyBtn.disabled = true;
-      calendlyBtn.textContent = 'Book a call (coming soon)';
-      actions.appendChild(calendlyBtn);
-    }
-
-    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    throw new Error('Timed out waiting for mockups');
   } catch (err) {
+    stopLoadingMessages();
     loading.style.display = 'none';
-    contentEl.innerHTML = '<div class="mockup-fallback">Our team will prepare directions for you. We\u2019ll be in touch soon.</div>';
+    contentEl.innerHTML = '<div class="mockup-fallback">Our team will prepare directions for you. We\u2019ll be in touch shortly.</div>';
     actions.style.display = 'flex';
     document.getElementById('mockup-refine-btn').style.display = 'none';
     console.error('Mockup generation failed:', err);
@@ -4439,9 +4538,9 @@ async function sendMessage() {
             updatePhaseBar(parsed.phase, parsed.phase0_complete);
 
             if (parsed.phase0_complete && userType === 'lead' && popupAnswers._ai_qualified !== false) {
-              // HIT-28: Lead path — trigger mockup generation for all tiers
+              // HIT-28: Lead path — delay, then trigger mockups below chat
               phase0Complete = true;
-              triggerMockups(parsed.session_id);
+              setTimeout(() => triggerMockups(parsed.session_id), 1500);
             } else if (parsed.quickbuild_ready && parsed.quickbuild_content) {
               // Orchestrator Tier 1: Quick Build path — CDO takes over
               phase0Complete = true;
