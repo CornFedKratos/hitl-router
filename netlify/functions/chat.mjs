@@ -293,6 +293,8 @@ ${skillContent}
 
 You are operating through a web interface called the HITL-AI-DLC Agent Router.
 The orchestrator may be new to the methodology — be helpful, clear, and specific.
+
+FORMATTING RULE: Start every response with a **bold one-sentence summary** of what you're about to communicate. This sentence should stand alone as a complete summary — the rest of your response adds detail. Example: "**Your project is a strong fit for a Quick Build — here's why.**"
 ${designPathFraming}${userTypeFraming}
 Project context:
 - Problem: ${session?.problem || 'not yet defined'}

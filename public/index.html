@@ -1303,6 +1303,149 @@
       transform: translateY(-2px);
     }
 
+    /* ── Session Summary Panel (HIT-47) ── */
+    .summary-panel {
+      display: none;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 24px;
+      font-size: 12px;
+      color: var(--muted);
+      flex-shrink: 0;
+      overflow: hidden;
+      transition: max-height 0.2s ease;
+    }
+    .summary-panel.visible { display: block; }
+    .summary-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+    }
+    .summary-panel-title {
+      font-weight: 600;
+      font-size: 12px;
+      color: var(--text);
+      letter-spacing: 0.3px;
+    }
+    .summary-panel-toggle {
+      font-size: 11px;
+      color: var(--muted);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+    }
+    .summary-panel-body {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 2px 12px;
+      margin-top: 8px;
+      line-height: 1.6;
+    }
+    .summary-panel-label {
+      color: #555;
+      white-space: nowrap;
+    }
+    .summary-panel-value {
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .summary-panel-status {
+      grid-column: 1 / -1;
+      margin-top: 4px;
+      padding-top: 4px;
+      border-top: 1px solid var(--border);
+      color: var(--blue);
+      font-size: 11px;
+    }
+
+    /* ── Scroll to bottom pill ── */
+    .scroll-pill {
+      display: none;
+      position: fixed;
+      bottom: 90px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 6px 16px;
+      font-size: 12px;
+      color: var(--muted);
+      cursor: pointer;
+      z-index: 40;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+      transition: all 0.2s;
+    }
+    .scroll-pill:hover { color: var(--text); border-color: var(--blue); }
+    .scroll-pill.visible { display: block; }
+
+    /* ── Phase markers ── */
+    .phase-marker {
+      text-align: center;
+      padding: 8px 0;
+      font-size: 11px;
+      color: #555;
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: 0.5px;
+      position: relative;
+    }
+    .phase-marker::before,
+    .phase-marker::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      width: calc(50% - 80px);
+      height: 1px;
+      background: var(--border);
+    }
+    .phase-marker::before { left: 0; }
+    .phase-marker::after { right: 0; }
+
+    /* ── Collapsible messages ── */
+    .message-collapse-summary {
+      display: none;
+      font-size: 13px;
+      color: var(--muted);
+      padding: 6px 0;
+      cursor: pointer;
+      transition: color 0.15s;
+    }
+    .message-collapse-summary:hover { color: var(--text); }
+    .message-collapse-summary::before {
+      content: '\25B8 ';
+      font-size: 10px;
+      color: #555;
+    }
+    .message.collapsed .message-content { display: none; }
+    .message.collapsed .message-collapse-summary { display: block; }
+    .message.collapsed .message-collapse-summary::before { content: '\25B8 '; }
+    .message.expanded .message-collapse-summary { display: block; }
+    .message.expanded .message-collapse-summary::before { content: '\25BE '; }
+    .message.expanded .message-content { display: block; }
+
+    /* ── Copy action ── */
+    .message-copy {
+      display: none;
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 10px;
+      color: var(--muted);
+      cursor: pointer;
+      z-index: 2;
+    }
+    .message:hover .message-copy { display: block; }
+    .message-copy:hover { color: var(--text); border-color: var(--blue); }
+    .message > div { position: relative; }
+
     /* ── Messages ── */
     .message {
       display: flex;
@@ -1658,6 +1801,8 @@
       .popup-question { font-size: 17px; }
       .popup-textarea { min-height: 80px; }
       .mockup-grid { grid-template-columns: 1fr; }
+      .summary-panel-body { display: none; }
+      .summary-panel.expanded .summary-panel-body { display: grid; }
       .mockup-iframe { height: 200px; }
       .mockup-actions { flex-direction: column; }
       .escape-hatch { right: 16px; bottom: 80px; }
@@ -1699,6 +1844,18 @@
       <span>Go / No-Go</span>
     </div>
   </div>
+
+  <!-- Session Summary Panel (HIT-47) -->
+  <div class="summary-panel" id="summary-panel">
+    <div class="summary-panel-header" onclick="toggleSummaryPanel()">
+      <div class="summary-panel-title">Your Project</div>
+      <button class="summary-panel-toggle" id="summary-panel-toggle">expand</button>
+    </div>
+    <div class="summary-panel-body" id="summary-panel-body"></div>
+  </div>
+
+  <!-- Scroll to bottom pill -->
+  <div class="scroll-pill" id="scroll-pill" onclick="smoothScrollToBottom()">&#8595; New messages</div>
 
   <!-- Chat Area -->
   <div class="chat-area" id="chat-area">
@@ -3057,6 +3214,9 @@ function popupNext() {
     }).catch(() => {});
   }
 
+  // HIT-47: Update summary panel with latest answers
+  updateSummaryPanel();
+
   // Advance or submit
   if (popupStep < popupScreens.length - 1) {
     popupStep++;
@@ -3331,6 +3491,193 @@ window.addEventListener('beforeunload', () => {
   }
 });
 
+// ── HIT-47: Session Summary Panel ──
+const SUMMARY_FIELDS = {
+  design: [
+    { key: 'business_name', label: 'Business' },
+    { key: 'audience', label: 'Audience' },
+    { key: 'goal', label: 'Goal' },
+    { key: 'feeling', label: 'Feeling' },
+    { key: 'timeline', label: 'Timeline' },
+    { key: 'client', label: 'For' },
+  ],
+  tech: [
+    { key: 'problem', label: 'Problem' },
+    { key: 'solution', label: 'Solution' },
+    { key: 'audience', label: 'Audience' },
+    { key: 'timeline', label: 'Timeline' },
+    { key: 'client', label: 'For' },
+    { key: 'stakeholders', label: 'Team' },
+  ],
+};
+
+let summaryStatus = '';
+
+function updateSummaryPanel() {
+  const panel = document.getElementById('summary-panel');
+  const body = document.getElementById('summary-panel-body');
+  if (!panel || !body) return;
+
+  const fields = needType === 'design' ? SUMMARY_FIELDS.design : SUMMARY_FIELDS.tech;
+  const hasData = fields.some(f => popupAnswers[f.key]);
+  if (!hasData && !summaryStatus) return;
+
+  panel.classList.add('visible');
+
+  let html = '';
+  for (const field of fields) {
+    const val = popupAnswers[field.key];
+    if (val) {
+      html += `<div class="summary-panel-label">${field.label}</div>`;
+      html += `<div class="summary-panel-value">${escapeHtml(val)}</div>`;
+    }
+  }
+  if (summaryStatus) {
+    html += `<div class="summary-panel-status">${escapeHtml(summaryStatus)}</div>`;
+  }
+  body.innerHTML = html;
+}
+
+function setSummaryStatus(status) {
+  summaryStatus = status;
+  updateSummaryPanel();
+}
+
+function toggleSummaryPanel() {
+  const panel = document.getElementById('summary-panel');
+  const toggle = document.getElementById('summary-panel-toggle');
+  panel.classList.toggle('expanded');
+  toggle.textContent = panel.classList.contains('expanded') ? 'collapse' : 'expand';
+}
+
+// ── HIT-47: Scroll awareness ──
+let userHasScrolled = false;
+
+function initScrollAwareness() {
+  const area = document.getElementById('chat-area');
+  if (!area) return;
+
+  area.addEventListener('scroll', () => {
+    const atBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 100;
+    userHasScrolled = !atBottom;
+
+    const pill = document.getElementById('scroll-pill');
+    if (pill) {
+      pill.classList.toggle('visible', userHasScrolled);
+    }
+  });
+}
+initScrollAwareness();
+
+function smoothScrollToBottom() {
+  const area = document.getElementById('chat-area');
+  if (area) {
+    area.scrollTo({ top: area.scrollHeight, behavior: 'smooth' });
+    userHasScrolled = false;
+    const pill = document.getElementById('scroll-pill');
+    if (pill) pill.classList.remove('visible');
+  }
+}
+
+// ── HIT-47: Collapsible messages ──
+let lastAgentMsgEl = null;
+let lastAgentMsgText = '';
+let collapseTimer = null;
+
+function markPreviousMessageCollapsible() {
+  if (!lastAgentMsgEl || lastAgentMsgEl.classList.contains('has-collapse')) return;
+
+  const el = lastAgentMsgEl;
+  const text = lastAgentMsgText;
+  el.classList.add('has-collapse');
+
+  // Extract lead sentence — first strong text or first sentence
+  const contentEl = el.querySelector('.message-content');
+  let summary = '';
+  if (contentEl) {
+    const strong = contentEl.querySelector('strong');
+    if (strong) {
+      summary = strong.textContent;
+    } else {
+      const fullText = contentEl.textContent || '';
+      const firstSentence = fullText.match(/^[^.!?]+[.!?]/);
+      summary = firstSentence ? firstSentence[0] : fullText.substring(0, 80) + '...';
+    }
+  }
+
+  // Add collapse summary element
+  const summaryEl = document.createElement('div');
+  summaryEl.className = 'message-collapse-summary';
+  summaryEl.textContent = summary;
+  summaryEl.onclick = (e) => {
+    e.stopPropagation();
+    if (el.classList.contains('collapsed')) {
+      el.classList.remove('collapsed');
+      el.classList.add('expanded');
+    } else {
+      el.classList.remove('expanded');
+      el.classList.add('collapsed');
+    }
+  };
+
+  const wrapper = el.querySelector('div');
+  if (wrapper) wrapper.insertBefore(summaryEl, contentEl);
+
+  // Auto-collapse after 3 seconds
+  setTimeout(() => {
+    // Only collapse if it's not the most recent message anymore
+    if (el !== lastAgentMsgEl) {
+      el.classList.add('collapsed');
+    }
+  }, 3000);
+}
+
+// ── HIT-47: Phase markers ──
+let lastDetectedRole = '';
+
+function insertPhaseMarker(roleName) {
+  const marker = document.createElement('div');
+  marker.className = 'phase-marker';
+  marker.textContent = `${roleName} is taking over`;
+  chatArea.appendChild(marker);
+}
+
+// ── HIT-47: Copy action ──
+function addCopyAction(msgEl) {
+  const wrapper = msgEl.querySelector('div');
+  if (!wrapper) return;
+
+  const btn = document.createElement('button');
+  btn.className = 'message-copy';
+  btn.textContent = 'Copy';
+  btn.onclick = (e) => {
+    e.stopPropagation();
+    const content = msgEl.querySelector('.message-content');
+    if (content) {
+      navigator.clipboard.writeText(content.textContent || '').then(() => {
+        btn.textContent = 'Copied';
+        setTimeout(() => btn.textContent = 'Copy', 1500);
+      }).catch(() => {});
+    }
+  };
+  wrapper.appendChild(btn);
+}
+
+// ── HIT-47: Input state ──
+function setInputState(state, placeholder) {
+  const inp = document.getElementById('input');
+  const btn = document.getElementById('send-btn');
+  if (state === 'disabled') {
+    inp.disabled = true;
+    inp.placeholder = placeholder || 'Agent is responding...';
+    btn.disabled = true;
+  } else {
+    inp.disabled = false;
+    inp.placeholder = placeholder || 'Describe what you\u2019re building...';
+    btn.disabled = false;
+  }
+}
+
 // ── Render buffer for smooth streaming ──
 let renderBuffer = '';
 let renderTimer = null;
@@ -3503,6 +3850,7 @@ function addMessage(role, content, agentRole) {
 
   msg.innerHTML = inner;
   chatArea.appendChild(msg);
+  if (role === 'agent') addCopyAction(msg);
   scrollToBottom();
   return msg;
 }
@@ -3533,7 +3881,9 @@ function updateStreamingMessage(msg, text, agentRole) {
 
 // ── Scroll ──
 function scrollToBottom() {
-  chatArea.scrollTop = chatArea.scrollHeight;
+  if (!userHasScrolled) {
+    chatArea.scrollTo({ top: chatArea.scrollHeight, behavior: 'smooth' });
+  }
 }
 
 // ── Escape HTML ──
@@ -4580,14 +4930,33 @@ async function sendMessage() {
             if (userType === 'orchestrator') {
               localStorage.setItem('hitl_session_token', sessionId);
             }
+            // HIT-47: Collapse previous message + phase marker on role switch
+            markPreviousMessageCollapsible();
+            if (lastDetectedRole && lastDetectedRole !== detectedRole) {
+              const roleNames = { CPO: 'Claud3 (CPO)', CTO: 'Codey (CTO)', CDO: 'Carl (CDO)', CQO: 'CQO', CIO: 'CIO', CSO: 'CSO' };
+              insertPhaseMarker(roleNames[detectedRole] || detectedRole);
+            }
+            lastDetectedRole = detectedRole;
+            // HIT-47: Input state
+            setInputState('disabled', 'Agent is responding...');
             streamMsg = createStreamingMessage(detectedRole);
             activeStreamMsg = streamMsg;
             activeStreamText = '';
+            // Track for collapse
+            lastAgentMsgEl = streamMsg;
+            lastAgentMsgText = '';
           } else if (parsed.type === 'text') {
             fullText += parsed.text;
+            lastAgentMsgText += parsed.text;
             onChunk(parsed.text);
           } else if (parsed.type === 'done') {
             onStreamComplete();
+            // HIT-47: Add copy action to completed message + restore input
+            if (streamMsg) addCopyAction(streamMsg);
+            const ctxPlaceholder = needType === 'design' ? 'Tell Carl what you think...' : needType === 'technology_support' ? 'Describe the issue...' : 'Describe what you\u2019re building...';
+            setInputState('enabled', ctxPlaceholder);
+            // Update summary panel
+            updateSummaryPanel();
             sessionId = parsed.session_id;
             updatePhaseBar(parsed.phase, parsed.phase0_complete);
 
