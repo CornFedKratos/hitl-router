@@ -355,6 +355,61 @@
     .popup-source-option:hover { border-color: rgba(59, 159, 231, 0.3); background: var(--surface2); }
     .popup-source-option.selected { border-color: var(--blue); background: rgba(59, 159, 231, 0.08); }
 
+    /* ── Social Proof Panel (HIT-34) ── */
+    .social-proof {
+      display: none;
+      max-width: 560px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 20px 24px;
+    }
+    .social-proof.visible { display: block; }
+    .social-proof-stat {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    .social-proof-stat span {
+      color: var(--blue);
+    }
+    .social-proof-quotes {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .social-proof-quote {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.6;
+      font-style: italic;
+    }
+    .social-proof-quote-attr {
+      font-style: normal;
+      font-size: 12px;
+      color: #555;
+      margin-top: 8px;
+    }
+    .social-proof-logos {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: #555;
+      margin-bottom: 8px;
+    }
+    .social-proof-logos span {
+      color: #444;
+    }
+
     /* ── Pre-Chat Options Panel ── */
     .prechat-options {
       max-width: 560px;
@@ -1224,6 +1279,24 @@
         </div>
       </div>
 
+      <!-- Social Proof Panel (HIT-34 — lead path only) -->
+      <div class="social-proof" id="social-proof">
+        <div class="social-proof-stat"><span>20+ years</span> of digital product experience</div>
+        <div class="social-proof-quotes">
+          <div class="social-proof-quote">
+            "They didn't just build what we asked for — they helped us figure out what we actually needed."
+            <div class="social-proof-quote-attr">— S3 Technology client</div>
+          </div>
+          <div class="social-proof-quote">
+            "The process was clear from day one. We always knew where we stood and what was coming next."
+            <div class="social-proof-quote-attr">— EX Squared engagement</div>
+          </div>
+        </div>
+        <div class="social-proof-logos">
+          S3 TECHNOLOGY <span>&middot;</span> EX SQUARED
+        </div>
+      </div>
+
       <!-- Pre-Chat Options Panel -->
       <div class="prechat-options" id="prechat-options">
         <div class="prechat-divider">Already know what you need?</div>
@@ -1421,6 +1494,12 @@ function selectUserType(type) {
 
 function showEntryToggle() {
   document.getElementById('starters').style.display = '';
+
+  // HIT-34: Show social proof for leads only
+  const proof = document.getElementById('social-proof');
+  if (proof && userType === 'lead') {
+    proof.classList.add('visible');
+  }
 
   // Adjust entry toggle framing based on user type
   if (userType === 'lead') {
