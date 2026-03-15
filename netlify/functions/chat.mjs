@@ -149,11 +149,23 @@ ${phase0Instructions}${cdoQuickBuildInstructions}`;
 
 // ── Session management ──
 
-async function createSession(userType) {
+async function createSession(opts = {}) {
   const row = {};
-  if (userType === 'orchestrator' || userType === 'lead') {
-    row.user_type = userType;
+  if (opts.userType === 'orchestrator' || opts.userType === 'lead') {
+    row.user_type = opts.userType;
   }
+  // Lead capture fields (HIT-17)
+  if (opts.lead_email && opts.consent_given) {
+    row.lead_name = opts.lead_name || null;
+    row.lead_email = opts.lead_email;
+    row.consent_given = true;
+    row.consent_given_at = new Date().toISOString();
+  }
+  // Source attribution (HIT-36)
+  if (opts.source_utm_source) row.source_utm_source = opts.source_utm_source;
+  if (opts.source_utm_medium) row.source_utm_medium = opts.source_utm_medium;
+  if (opts.source_utm_campaign) row.source_utm_campaign = opts.source_utm_campaign;
+  if (opts.source_referrer) row.source_referrer = opts.source_referrer;
 
   const { data, error } = await supabase
     .from('sessions')
@@ -260,7 +272,9 @@ export default async (req) => {
   try {
     const body = await req.json();
     const { message } = body;
-    let { session_id: sessionId, quickbuild: clientQuickbuild, quickbuild_content: clientQbContent, user_type: userType } = body;
+    let { session_id: sessionId, quickbuild: clientQuickbuild, quickbuild_content: clientQbContent, user_type: userType,
+      lead_name, lead_email, consent_given,
+      source_utm_source, source_utm_medium, source_utm_campaign, source_referrer } = body;
 
     if (!message || typeof message !== 'string') {
       return new Response(JSON.stringify({ error: 'Message is required' }), {
@@ -272,10 +286,19 @@ export default async (req) => {
     // 1. Create or fetch session
     let session;
     if (!sessionId) {
-      sessionId = await createSession(userType);
+      sessionId = await createSession({
+        userType, lead_name, lead_email, consent_given,
+        source_utm_source, source_utm_medium, source_utm_campaign, source_referrer,
+      });
       session = await getSession(sessionId);
     } else {
       session = await getSession(sessionId);
+    }
+
+    // Update source_manual if provided (HIT-36 — collected at end of popup flow)
+    const { source_manual } = body;
+    if (source_manual && sessionId) {
+      await supabase.from('sessions').update({ source_manual }).eq('id', sessionId);
     }
 
     // Overlay client-side Quick Build state onto session for prompt building
