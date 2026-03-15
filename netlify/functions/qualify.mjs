@@ -24,7 +24,7 @@ export default async (req) => {
   }
 
   try {
-    const { session_id, ai_qualified, human_led, partial_answers } = await req.json();
+    const { session_id, ai_qualified, human_led, partial_answers, mockup_direction_selected } = await req.json();
 
     if (!session_id) {
       return new Response(JSON.stringify({ error: 'session_id required' }), {
@@ -37,6 +37,7 @@ export default async (req) => {
     if (ai_qualified !== undefined) update.ai_qualified = ai_qualified;
     if (human_led !== undefined) update.human_led = human_led;
     if (partial_answers) update.partial_answers = partial_answers;
+    if (mockup_direction_selected) update.mockup_direction_selected = mockup_direction_selected;
 
     const { error } = await supabase
       .from('sessions')

@@ -483,6 +483,198 @@
     .human-led-confirmation-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
     .human-led-confirmation-desc { font-size: 14px; color: var(--muted); }
 
+    /* ── Mockup Directions Panel (HIT-28) ── */
+    .mockup-panel {
+      display: none;
+      padding: 24px;
+      max-width: 960px;
+      margin: 0 auto;
+      animation: fadeIn 0.4s ease;
+    }
+    .mockup-panel.visible { display: block; }
+    .mockup-panel-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .mockup-panel-subtitle {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+    .mockup-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .mockup-card {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      transition: all 0.2s;
+    }
+    .mockup-card:hover {
+      border-color: rgba(59, 159, 231, 0.4);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+    .mockup-card.selected {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 1px var(--blue), 0 8px 24px rgba(59, 159, 231, 0.2);
+    }
+    /* Tier 1: HTML preview iframe */
+    .mockup-iframe {
+      width: 100%;
+      height: 280px;
+      border: none;
+      pointer-events: none;
+      background: white;
+    }
+    /* Tier 2/3: Card content */
+    .mockup-card-body {
+      padding: 18px;
+    }
+    .mockup-card-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+    .mockup-card-framing {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.6;
+      margin-bottom: 12px;
+    }
+    .mockup-card-features {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 12px;
+    }
+    .mockup-card-features li {
+      font-size: 12px;
+      color: var(--muted);
+      padding: 3px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .mockup-card-features li:last-child { border-bottom: none; }
+    .mockup-card-features li::before {
+      content: '\2022 ';
+      color: var(--blue);
+      margin-right: 6px;
+    }
+    .mockup-card-approach {
+      font-size: 12px;
+      color: #555;
+      font-style: italic;
+    }
+    /* Tier 3: Vision extras */
+    .mockup-card-vision {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.6;
+      margin-bottom: 14px;
+    }
+    .mockup-card-pillars {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .mockup-card-pillar {
+      font-size: 11px;
+      background: rgba(59, 159, 231, 0.08);
+      color: var(--blue);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-weight: 500;
+    }
+    .mockup-card-roadmap {
+      font-size: 12px;
+      color: #555;
+      line-height: 1.6;
+    }
+    .mockup-card-roadmap strong {
+      color: var(--muted);
+    }
+    /* Card footer label */
+    .mockup-card-label {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+    }
+    .mockup-card-label-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+    .mockup-card-label-desc {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    /* Actions row */
+    .mockup-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      margin-top: 16px;
+    }
+    .mockup-action-btn {
+      padding: 10px 24px;
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .mockup-action-primary {
+      background: var(--blue);
+      border: none;
+      color: white;
+    }
+    .mockup-action-primary:hover { background: #2E8BC4; }
+    .mockup-action-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+    .mockup-action-secondary {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .mockup-action-secondary:hover { border-color: var(--blue); color: var(--text); }
+    .mockup-calendly {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #064E3B;
+      color: #6EE7B7;
+      border: 1px solid rgba(110, 231, 183, 0.3);
+      border-radius: 10px;
+      padding: 10px 24px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .mockup-calendly:hover { background: #065F46; border-color: #6EE7B7; }
+    .mockup-calendly:disabled, .mockup-calendly[disabled] { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+    .mockup-loading {
+      text-align: center;
+      padding: 40px 0;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    .mockup-fallback {
+      text-align: center;
+      padding: 32px 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
     /* ── Social Proof Panel (HIT-34) ── */
     .social-proof {
       display: none;
@@ -1328,6 +1520,9 @@
       .popup-modal { padding: 24px 20px; max-height: calc(100dvh - 40px); }
       .popup-question { font-size: 17px; }
       .popup-textarea { min-height: 80px; }
+      .mockup-grid { grid-template-columns: 1fr; }
+      .mockup-iframe { height: 200px; }
+      .mockup-actions { flex-direction: column; }
       .escape-hatch { right: 16px; bottom: 80px; }
       .escape-modal { right: 16px; width: calc(100vw - 32px); bottom: 120px; }
       .prototype-grid { grid-template-columns: 1fr; }
@@ -1454,6 +1649,19 @@
         <div class="popup-escape">
           <a onclick="switchToChat()">Switch to chat &rarr;</a>
         </div>
+      </div>
+    </div>
+
+    <!-- Mockup Directions Panel (HIT-28) -->
+    <div class="mockup-panel" id="mockup-panel">
+      <div class="mockup-panel-title" id="mockup-panel-title">Here are 3 directions for your project</div>
+      <div class="mockup-panel-subtitle" id="mockup-panel-subtitle">Click the one that resonates. We'll take it from there.</div>
+      <div id="mockup-panel-content">
+        <div class="mockup-loading" id="mockup-loading">Generating directions<span class="typing"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></span></div>
+      </div>
+      <div class="mockup-actions" id="mockup-actions" style="display:none;">
+        <button class="mockup-action-btn mockup-action-primary" id="mockup-refine-btn" onclick="mockupRefine()" disabled>Refine this direction</button>
+        <button class="mockup-action-btn mockup-action-secondary" id="mockup-contact-btn" onclick="mockupContact()">Contact us</button>
       </div>
     </div>
 
@@ -2642,6 +2850,197 @@ function showHandoff(sid) {
   handoff.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
+// ── HIT-28: Mockup directions ──
+let mockupData = null;
+let selectedMockupDirection = null;
+
+async function triggerMockups(sid) {
+  const panel = document.getElementById('mockup-panel');
+  const contentEl = document.getElementById('mockup-panel-content');
+  const loading = document.getElementById('mockup-loading');
+  const actions = document.getElementById('mockup-actions');
+
+  panel.classList.add('visible');
+  loading.style.display = 'block';
+  actions.style.display = 'none';
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  try {
+    const res = await fetch('/api/mockups', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sid }),
+    });
+
+    if (!res.ok) throw new Error('Failed to generate mockups');
+    mockupData = await res.json();
+
+    loading.style.display = 'none';
+    renderMockupDirections(mockupData);
+    actions.style.display = 'flex';
+
+    // Update actions based on tier
+    const refineBtn = document.getElementById('mockup-refine-btn');
+    if (mockupData.tier === 'full_engagement') {
+      refineBtn.textContent = 'Let\u2019s refine this together';
+      refineBtn.onclick = mockupContact;
+    }
+
+    // Add Calendly button for Tier 3
+    if (mockupData.tier === 'full_engagement' && mockupData.calendly_url) {
+      const calendlyBtn = document.createElement('a');
+      calendlyBtn.className = 'mockup-calendly';
+      calendlyBtn.href = mockupData.calendly_url;
+      calendlyBtn.target = '_blank';
+      calendlyBtn.rel = 'noopener';
+      calendlyBtn.textContent = 'Book a call';
+      actions.appendChild(calendlyBtn);
+    } else if (mockupData.tier === 'full_engagement' && !mockupData.calendly_url) {
+      const calendlyBtn = document.createElement('button');
+      calendlyBtn.className = 'mockup-calendly';
+      calendlyBtn.disabled = true;
+      calendlyBtn.textContent = 'Book a call (coming soon)';
+      actions.appendChild(calendlyBtn);
+    }
+
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (err) {
+    loading.style.display = 'none';
+    contentEl.innerHTML = '<div class="mockup-fallback">Our team will prepare directions for you. We\u2019ll be in touch soon.</div>';
+    actions.style.display = 'flex';
+    document.getElementById('mockup-refine-btn').style.display = 'none';
+    console.error('Mockup generation failed:', err);
+  }
+}
+
+function renderMockupDirections(data) {
+  const contentEl = document.getElementById('mockup-panel-content');
+  const tier = data.tier;
+  const directions = data.directions;
+
+  if (tier === 'quick_build') {
+    // Tier 1: HTML prototypes in iframes
+    document.getElementById('mockup-panel-title').textContent = 'Choose a direction';
+    document.getElementById('mockup-panel-subtitle').textContent = 'Click the one that feels right. We\u2019ll refine it from there.';
+
+    contentEl.innerHTML = `<div class="mockup-grid" id="mockup-grid">
+      ${directions.map(d => `
+        <div class="mockup-card" onclick="selectMockupDirection('${d.id}')" data-dir="${d.id}">
+          <iframe class="mockup-iframe" id="mockup-iframe-${d.id}" sandbox="allow-same-origin"></iframe>
+          <div class="mockup-card-label">
+            <div class="mockup-card-label-name">${d.name}</div>
+            <div class="mockup-card-label-desc">${d.desc}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>`;
+
+    // Load HTML into iframes
+    directions.forEach(d => {
+      if (d.content) {
+        const iframe = document.getElementById(`mockup-iframe-${d.id}`);
+        if (iframe) {
+          const blob = new Blob([d.content], { type: 'text/html' });
+          iframe.src = URL.createObjectURL(blob);
+        }
+      }
+    });
+  } else if (tier === 'launchpad') {
+    // Tier 2: Concept direction cards
+    document.getElementById('mockup-panel-title').textContent = '3 directions for your project';
+    document.getElementById('mockup-panel-subtitle').textContent = 'Each takes a different approach to solving your problem.';
+
+    contentEl.innerHTML = `<div class="mockup-grid" id="mockup-grid">
+      ${directions.map(d => `
+        <div class="mockup-card" onclick="selectMockupDirection('${d.id}')" data-dir="${d.id}">
+          <div class="mockup-card-body">
+            <div class="mockup-card-name">${escapeHtml(d.name || 'Direction ' + d.id)}</div>
+            <div class="mockup-card-framing">${escapeHtml(d.framing || '')}</div>
+            ${d.features ? `<ul class="mockup-card-features">${d.features.map(f => `<li>${escapeHtml(f)}</li>`).join('')}</ul>` : ''}
+            ${d.approach ? `<div class="mockup-card-approach">${escapeHtml(d.approach)}</div>` : ''}
+          </div>
+        </div>
+      `).join('')}
+    </div>`;
+  } else {
+    // Tier 3: Vision direction cards
+    document.getElementById('mockup-panel-title').textContent = '3 strategic directions';
+    document.getElementById('mockup-panel-subtitle').textContent = 'Each represents a different partnership approach.';
+
+    contentEl.innerHTML = `<div class="mockup-grid" id="mockup-grid">
+      ${directions.map(d => `
+        <div class="mockup-card" onclick="selectMockupDirection('${d.id}')" data-dir="${d.id}">
+          <div class="mockup-card-body">
+            <div class="mockup-card-name">${escapeHtml(d.name || 'Direction ' + d.id)}</div>
+            <div class="mockup-card-vision">${escapeHtml(d.vision || '')}</div>
+            ${d.pillars ? `<div class="mockup-card-pillars">${d.pillars.map(p => `<span class="mockup-card-pillar">${escapeHtml(p)}</span>`).join('')}</div>` : ''}
+            ${d.roadmap ? `<div class="mockup-card-roadmap">
+              <strong>MVP:</strong> ${escapeHtml(d.roadmap.mvp || '')}<br>
+              <strong>Scale:</strong> ${escapeHtml(d.roadmap.scale || '')}<br>
+              <strong>Evolve:</strong> ${escapeHtml(d.roadmap.evolve || '')}
+            </div>` : ''}
+          </div>
+        </div>
+      `).join('')}
+    </div>`;
+  }
+}
+
+function selectMockupDirection(dirId) {
+  selectedMockupDirection = dirId;
+  document.querySelectorAll('.mockup-card').forEach(c => {
+    c.classList.toggle('selected', c.dataset.dir === dirId);
+  });
+  document.getElementById('mockup-refine-btn').disabled = false;
+
+  // Write selection to Supabase
+  if (sessionId) {
+    fetch('/api/qualify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, mockup_direction_selected: dirId }),
+    }).catch(() => {});
+  }
+}
+
+function mockupRefine() {
+  if (!selectedMockupDirection) return;
+  // For now, route to contact — refinement loop is a future enhancement
+  mockupContact();
+}
+
+function mockupContact() {
+  // Route to HIT-23 contact form, pre-filled
+  const panel = document.getElementById('human-led-handoff');
+  const content = document.getElementById('human-led-handoff-content');
+
+  const tierLabel = mockupData?.tier === 'quick_build' ? 'Quick Build' : mockupData?.tier === 'full_engagement' ? 'Full Engagement' : 'Launchpad';
+  const dirName = mockupData?.directions?.find(d => d.id === selectedMockupDirection)?.name || selectedMockupDirection || '';
+
+  content.innerHTML = `
+    <div class="human-led-handoff-title">Let's bring this to life.</div>
+    <div class="human-led-handoff-desc">
+      You selected <strong>${escapeHtml(dirName)}</strong>. Our team will review your project details and follow up to refine this direction together.
+    </div>
+    <form class="human-led-form" id="human-led-form" onsubmit="submitHumanLedForm(event)">
+      <input type="text" id="hl-name" placeholder="Your name" value="${escapeHtml(popupLeadData?.name || '')}">
+      <input type="email" id="hl-email" placeholder="Your email" value="${escapeHtml(popupLeadData?.email || '')}">
+      <input type="text" id="hl-problem" placeholder="What you're trying to build" value="${escapeHtml(popupAnswers?.problem || '')}" readonly>
+      <textarea id="hl-message" placeholder="Anything else? (optional)"></textarea>
+      <input type="hidden" id="hl-direction" value="${escapeHtml(tierLabel + ': ' + dirName)}">
+      <button type="submit" class="human-led-submit" id="hl-submit">Request a Consultation</button>
+    </form>
+    <div class="human-led-fallback">
+      Prefer email directly? <a href="mailto:don@s3technology.io">don@s3technology.io</a>
+    </div>
+  `;
+
+  // Hide mockup panel, show contact
+  document.getElementById('mockup-panel').classList.remove('visible');
+  panel.classList.add('visible');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
 // ── Tier 3: Full Engagement warm handoff (HIT-27 stub) ──
 function showFullEngagementHandoff(sid) {
   const panel = document.getElementById('human-led-handoff');
@@ -2753,16 +3152,20 @@ async function sendMessage() {
             sessionId = parsed.session_id;
             updatePhaseBar(parsed.phase, parsed.phase0_complete);
 
-            if (parsed.quickbuild_ready && parsed.quickbuild_content) {
-              // Tier 1: Quick Build path — CDO takes over
+            if (parsed.phase0_complete && userType === 'lead' && popupAnswers._ai_qualified !== false) {
+              // HIT-28: Lead path — trigger mockup generation for all tiers
+              phase0Complete = true;
+              triggerMockups(parsed.session_id);
+            } else if (parsed.quickbuild_ready && parsed.quickbuild_content) {
+              // Orchestrator Tier 1: Quick Build path — CDO takes over
               phase0Complete = true;
               activateQuickBuild(parsed.quickbuild_content);
             } else if (parsed.phase0_complete && parsed.engagement_tier === 'full_engagement') {
-              // Tier 3: Full Engagement — warm handoff to Don
+              // Orchestrator Tier 3: Full Engagement — warm handoff to Don
               phase0Complete = true;
               showFullEngagementHandoff(parsed.session_id);
             } else if (parsed.phase0_complete) {
-              // Tier 2 (Launchpad) or default — show CLI handoff
+              // Orchestrator Tier 2 or default — show CLI handoff
               phase0Complete = true;
               showHandoff(parsed.session_id);
             }

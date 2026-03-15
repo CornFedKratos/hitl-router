@@ -60,8 +60,8 @@ const TIER_SIGNALS = {
     { id: 'short_timeline', patterns: ['asap', 'as soon as possible', 'few weeks', 'this week', 'end of month', 'rush', 'days', 'right away', 'immediately'] },
     { id: 'no_auth', patterns: ['no login', 'no accounts', 'no sign up', 'no authentication', 'no user accounts'] },
     { id: 'no_payments', patterns: ['no payments', 'no billing', 'no e-commerce', 'no transactions', 'no checkout'] },
-    { id: 'local_audience', patterns: ['local', 'neighborhood', 'my town', 'my city', 'regional', 'small community'] },
-    { id: 'lead_gen_goal', patterns: ['lead gen', 'credibility', 'online presence', 'business card', 'get found', 'google search', 'seo'] },
+    { id: 'local_audience', patterns: ['local', 'neighborhood', 'my town', 'my city', 'regional', 'small community', 'marion', 'iowa', 'county', 'small town'] },
+    { id: 'lead_gen_goal', patterns: ['lead gen', 'credibility', 'online presence', 'business card', 'get found', 'google search', 'seo', 'contact form', 'customer inquiries', 'web presence'] },
     { id: 'solo_operator', patterns: ['just me', 'solo', 'one person', 'i am the', 'my own', 'solopreneur', 'freelance'] },
   ],
   launchpad: [
