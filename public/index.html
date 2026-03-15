@@ -4738,6 +4738,13 @@ function onPaymentConfirmed(sid) {
 }
 
 // Also check URL params for return from Stripe redirect (fallback)
+// Persist testing mode from URL param on any page load
+(function checkTestingMode() {
+  if (new URLSearchParams(location.search).get('testing') === 'true') {
+    localStorage.setItem('hitl_testing', 'true');
+  }
+})();
+
 (function checkPaymentReturn() {
   const params = new URLSearchParams(location.search);
   if (params.get('payment_success') === 'true' && params.get('session_id')) {
