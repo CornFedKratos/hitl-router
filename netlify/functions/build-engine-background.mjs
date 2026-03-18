@@ -1015,25 +1015,57 @@ export default async (req) => {
       });
 
       try {
-        const apiParams = {
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: agent.role === 'CDO' ? 16000 : 4096,
-          system: systemPrompt,
-          messages: [{ role: 'user', content: prompt }],
-        };
+        // ── CDO: Two-step Opus process ──
+        if (agent.role === 'CDO' && tier === 'quick_build') {
+          // Step 1: Design direction commit (Opus)
+          await supabase.from('sessions').update({ build_phase: 'cdo_design' }).eq('id', session_id);
 
-        // CDO gets extended thinking — reason about design before generating
-        if (agent.role === 'CDO') {
-          apiParams.thinking = { type: 'enabled', budget_tokens: 8000 };
+          const designResponse = await anthropic.messages.create({
+            model: 'claude-opus-4-20250514',
+            max_tokens: 4096,
+            system: 'You are an elite creative director. You make bold, specific design decisions.',
+            messages: [{ role: 'user', content: `A client gave us this brief for their website:\n\n${prompt}\n\nBefore building anything, commit to a specific design direction. Be bold and specific:\n\n1. TYPEFACE: Name the exact Google Font(s) you'd use and why. Not Inter — pick something with personality that matches this client.\n2. PALETTE: Give me exact hex values for primary, accent, background, and text colors. Derive them from the client's emotional brief.\n3. LAYOUT: Describe the overall layout philosophy — dark or light, editorial or corporate, dense or spacious.\n4. HERO: What does the hero section look like? What does the headline say? How does it feel?\n5. SECTIONS: What sections does this specific client need and in what order? Not a generic template — what serves THEM?\n6. PERSONALITY: One sentence describing what makes this site feel different from every other developer portfolio.\n\nBe decisive. No hedging. No "could use" or "might work" — commit.` }],
+          });
+
+          const designDirection = designResponse.content[0]?.text || '';
+
+          // Log the design direction
+          await supabase.from('kb_entries').insert({
+            session_id, phase: 1, entry_type: 'session', visibility: 'internal',
+            author: 'CDO_DESIGN',
+            summary: 'CDO Design Direction (Step 1 — Opus)',
+            details: designDirection.substring(0, 10000),
+          });
+
+          // Step 2: Build HTML from that direction (Opus)
+          await supabase.from('sessions').update({ build_phase: 'cdo_build' }).eq('id', session_id);
+
+          const buildResponse = await anthropic.messages.create({
+            model: 'claude-opus-4-20250514',
+            max_tokens: 16000,
+            system: 'You are an elite web designer and front-end developer. You build websites that make clients emotional.',
+            messages: [
+              { role: 'user', content: `A client gave us this brief:\n\n${prompt}\n\nBefore building, commit to a specific design direction.` },
+              { role: 'assistant', content: designDirection },
+              { role: 'user', content: `Perfect. Now build the complete HTML file using exactly the design direction you just committed to. Use the exact typefaces, colors, and layout you specified.\n\nComplete, self-contained HTML (CSS in <style>, JS in <script>). Import your chosen Google Font via <link>. Responsive. Scroll animations. Hover states. Contact form (action="#"). Display every contact method from the brief.\n\nNever invent stats or portfolio projects. No emoji icons.\n\nOutput only the HTML. No markdown fences. No explanation.` }
+            ],
+          });
+
+          outputs[agent.role] = buildResponse.content
+            .filter(b => b.type === 'text')
+            .map(b => b.text)
+            .join('') || '';
+
+        } else {
+          // All other agents: standard single call
+          const response = await anthropic.messages.create({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 4096,
+            system: systemPrompt,
+            messages: [{ role: 'user', content: prompt }],
+          });
+          outputs[agent.role] = response.content[0]?.text || '';
         }
-
-        const response = await anthropic.messages.create(apiParams);
-
-        // Extract text content (skip thinking blocks)
-        outputs[agent.role] = response.content
-          .filter(b => b.type === 'text')
-          .map(b => b.text)
-          .join('') || '';
       } catch (agentErr) {
         outputs[agent.role] = `[${agent.role} error: ${agentErr.message}]`;
       }
