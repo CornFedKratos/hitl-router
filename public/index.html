@@ -526,13 +526,71 @@
       border-color: var(--blue);
       box-shadow: 0 0 0 1px var(--blue), 0 8px 24px rgba(59, 159, 231, 0.2);
     }
-    /* Tier 1: HTML preview iframe */
+    /* Tier 1: HTML preview iframe — hero section only */
     .mockup-iframe {
       width: 100%;
-      height: 280px;
+      height: 450px;
       border: none;
       pointer-events: none;
       background: white;
+    }
+    .mockup-card {
+      max-height: 520px;
+    }
+    /* Full site preview overlay — shown after payment */
+    .site-preview-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 2000;
+      background: rgba(0,0,0,0.85);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    .site-preview-overlay.visible {
+      display: flex;
+    }
+    .site-preview-toolbar {
+      width: 100%;
+      max-width: 1200px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      flex-shrink: 0;
+    }
+    .site-preview-toolbar button {
+      padding: 10px 24px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .site-preview-close {
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+    }
+    .site-preview-close:hover {
+      background: rgba(255,255,255,0.25);
+    }
+    .site-preview-download {
+      background: var(--blue);
+      color: #fff;
+    }
+    .site-preview-download:hover {
+      background: #2a7fd4;
+      transform: translateY(-1px);
+    }
+    .site-preview-frame {
+      width: 100%;
+      max-width: 1200px;
+      flex: 1;
+      border: none;
+      border-radius: 12px;
+      background: #fff;
     }
     /* Tier 2/3: Card content */
     .mockup-card-body {
@@ -2100,6 +2158,15 @@
         <button class="mockup-action-btn mockup-action-primary" id="mockup-refine-btn" onclick="mockupRefine()" disabled>Refine this direction</button>
         <button class="mockup-action-btn mockup-action-secondary" id="mockup-contact-btn" onclick="mockupContact()">Contact us</button>
       </div>
+    </div>
+
+    <!-- HIT-76: Full site preview overlay — shown after payment -->
+    <div class="site-preview-overlay" id="site-preview-overlay">
+      <div class="site-preview-toolbar">
+        <button class="site-preview-close" onclick="closeSitePreview()">← Back to directions</button>
+        <button class="site-preview-download" onclick="downloadArtifacts()">Download your site</button>
+      </div>
+      <iframe class="site-preview-frame" id="site-preview-frame" sandbox="allow-scripts"></iframe>
     </div>
 
     <!-- Human-Led Handoff Panel (HIT-19 + HIT-23) -->
@@ -5867,27 +5934,21 @@ function renderMockupDirections(data) {
     document.getElementById('mockup-panel-subtitle').textContent = 'Click the one that feels right. We\u2019ll refine it from there.';
 
     contentEl.innerHTML = `<div class="mockup-grid" id="mockup-grid">
-      ${directions.map(d => `
+      ${directions.map(d => {
+        // Strip markdown fences from content (safety net)
+        const cleanHtml = (d.content || '').replace(/^```html?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+        // Use srcdoc instead of blob URLs — avoids browser security restrictions
+        const escaped = cleanHtml.replace(/"/g, '&quot;');
+        return `
         <div class="mockup-card" onclick="selectMockupDirection('${d.id}')" data-dir="${d.id}">
-          <iframe class="mockup-iframe" id="mockup-iframe-${d.id}" sandbox="allow-scripts"></iframe>
+          <iframe class="mockup-iframe" id="mockup-iframe-${d.id}" sandbox="allow-scripts" srcdoc="${escaped}"></iframe>
           <div class="mockup-card-label">
             <div class="mockup-card-label-name">${d.name}</div>
             <div class="mockup-card-label-desc">${d.desc}</div>
           </div>
-        </div>
-      `).join('')}
+        </div>`;
+      }).join('')}
     </div>`;
-
-    // Load HTML into iframes
-    directions.forEach(d => {
-      if (d.content) {
-        const iframe = document.getElementById(`mockup-iframe-${d.id}`);
-        if (iframe) {
-          const blob = new Blob([d.content], { type: 'text/html' });
-          iframe.src = URL.createObjectURL(blob);
-        }
-      }
-    });
   } else if (tier === 'launchpad') {
     // Tier 2: Concept direction cards
     document.getElementById('mockup-panel-title').textContent = '3 directions for your project';
@@ -5944,6 +6005,25 @@ function selectMockupDirection(dirId) {
       body: JSON.stringify({ session_id: sessionId, mockup_direction_selected: dirId }),
     }).catch(() => {});
   }
+}
+
+// HIT-76: Full site preview — shown after payment confirmation
+function showSitePreview(html) {
+  const overlay = document.getElementById('site-preview-overlay');
+  const frame = document.getElementById('site-preview-frame');
+  if (!overlay || !frame) return;
+
+  // Strip markdown fences
+  const clean = (html || '').replace(/^```html?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+  frame.srcdoc = clean;
+  overlay.classList.add('visible');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeSitePreview() {
+  const overlay = document.getElementById('site-preview-overlay');
+  if (overlay) overlay.classList.remove('visible');
+  document.body.style.overflow = '';
 }
 
 function mockupRefine() {

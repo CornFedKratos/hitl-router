@@ -25,9 +25,9 @@ async function generateTier1(session) {
         system: `You are an elite web designer building a website prototype for a real client.`,
         messages: [{ role: 'user', content: `${clientBrief}\n\n${dir.brief}\n\nBuild a complete, self-contained HTML prototype (CSS in <style>, no external dependencies, system font stack, responsive, under 8KB). Use the client's actual business name and content — never invent placeholder content. Include a contact form (action="#") and display their contact info.\n\nOutput only the raw HTML.` }],
       });
-      // Extract a name and description from the output for the direction card
-      const content = response.content[0]?.text || '';
-      const titleMatch = content.match(/<title>([^<]*)<\/title>/i);
+      // Strip markdown fences and extract metadata
+      const rawContent = response.content[0]?.text || '';
+      const content = rawContent.replace(/^```html?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
       return { id: dir.id, name: extractDirectionName(content, dir.id), desc: extractDirectionDesc(content), type: 'html', content };
     } catch (err) {
       return { id: dir.id, name: `Direction ${dir.id}`, desc: '', type: 'html', content: null, error: err.message };
