@@ -3727,18 +3727,30 @@ async function createLeadSession() {
 }
 
 async function submitPopupFlow() {
-  // Build structured prompt from answers
+  // Build structured prompt from answers — include ALL fields from both paths
   const lines = [];
-  lines.push('Here\u2019s my project:');
-  if (popupAnswers.problem) lines.push(`- Problem: ${popupAnswers.problem}`);
-  if (popupAnswers.solution) lines.push(`- Solution: ${popupAnswers.solution}`);
-  if (popupAnswers.audience) lines.push(`- Audience: ${popupAnswers.audience}`);
-  if (popupAnswers.success) lines.push(`- Success looks like: ${popupAnswers.success}`);
-  if (popupAnswers.client) lines.push(`- Client type: ${popupAnswers.client}`);
-  if (popupAnswers.timeline) lines.push(`- Timeline: ${popupAnswers.timeline}`);
-  if (popupAnswers.stakeholders) lines.push(`- Stakeholders: ${popupAnswers.stakeholders}`);
-  if (popupAnswers.existing_systems) lines.push(`- Existing systems: ${popupAnswers.existing_systems}`);
-  if (popupAnswers.constraints) lines.push(`- Technical constraints: ${popupAnswers.constraints}`);
+  lines.push('I just completed your intake questionnaire. Here are all of my answers — DO NOT re-ask any of these questions. Proceed directly to your feasibility assessment and Go/No-Go recommendation.\n');
+
+  // Design path fields
+  if (popupAnswers.business_name) lines.push(`Business name and what we do: ${popupAnswers.business_name}`);
+  if (popupAnswers.audience) lines.push(`Our best customers: ${popupAnswers.audience}`);
+  if (popupAnswers.goal) lines.push(`#1 thing we want visitors to do: ${popupAnswers.goal}`);
+  if (popupAnswers.feeling) lines.push(`How the brand should feel: ${popupAnswers.feeling}`);
+  if (popupAnswers.style) lines.push(`Style preferences: ${popupAnswers.style}`);
+
+  // Tech path fields
+  if (popupAnswers.problem) lines.push(`Problem we're solving: ${popupAnswers.problem}`);
+  if (popupAnswers.solution) lines.push(`Solution we're imagining: ${popupAnswers.solution}`);
+  if (popupAnswers.success) lines.push(`Success looks like: ${popupAnswers.success}`);
+
+  // Shared fields
+  if (popupAnswers.client) lines.push(`Project type: ${popupAnswers.client}`);
+  if (popupAnswers.timeline) lines.push(`Timeline: ${popupAnswers.timeline}`);
+  if (popupAnswers.stakeholders) lines.push(`Decision makers: ${popupAnswers.stakeholders}`);
+  if (popupAnswers.existing_systems) lines.push(`Existing systems: ${popupAnswers.existing_systems}`);
+  if (popupAnswers.constraints) lines.push(`Technical constraints: ${popupAnswers.constraints}`);
+
+  lines.push('\nAll intake questions have been answered. Please move forward.');
 
   const structuredMessage = lines.join('\n');
 
