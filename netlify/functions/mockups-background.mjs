@@ -8,46 +8,45 @@ const supabase = createClient(
   process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || '',
 );
 
-// ── Tier 1: Quick Build — 3 separate API calls ──
+// ── Tier 1: Quick Build — 3 genuinely distinct directions ──
 
-const TIER1_BASE = `You are generating a single complete HTML website prototype.
-
-CRITICAL RULES:
-- COMPLETE, self-contained HTML with ALL CSS inline in a <style> tag
-- NO external dependencies — no CDN links, no Google Fonts, no external images
-- Use system font stacks: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif
-- Mobile-responsive with a viewport meta tag
-- Include a working contact form (action="#" with visible form fields)
-- Include all business content provided
-- Renders perfectly when opened directly in a browser
-- Keep total HTML under 8KB
-- Use semantic HTML5
-
-OUTPUT: Return ONLY the raw HTML. No markdown fences, no explanation, no wrapping.`;
-
-const TIER1_DIRECTIONS = [
-  { id: 'A', name: 'Warm & Trustworthy', desc: 'Soft, approachable, family-friendly',
-    prompt: `STYLE DIRECTION: "Warm & Trustworthy"\n- Soft white background (#FAFAF8), warm neutrals, earthy green accents (#4A7C59)\n- Large hero section with trust signals prominent\n- Contact form above the fold\n- Rounded corners, warm shadows\n- Best for: home services, inspection, family businesses` },
-  { id: 'B', name: 'Clean & Professional', desc: 'Structured, information-forward',
-    prompt: `STYLE DIRECTION: "Clean & Professional"\n- White background (#FFFFFF), navy (#1E3A5F) and slate (#64748B) accents\n- Structured grid layout, clear service cards with borders\n- Information-forward, minimal decoration\n- Sharp corners, subtle shadows\n- Best for: professional services, B2B` },
-  { id: 'C', name: 'Bold & Modern', desc: 'High contrast, premium feel',
-    prompt: `STYLE DIRECTION: "Bold & Modern"\n- Dark header (#111827), high contrast with white content area\n- Large typography, strong visual hierarchy\n- Services as feature blocks with colored icon circles\n- Mixed radius, dramatic shadows\n- Best for: premium positioning, younger audience` },
+const TIER1_DIRECTION_BRIEFS = [
+  { id: 'A', brief: 'Direction A should feel warm, human, and trustworthy. The kind of site that makes you feel safe hiring this person. Think rounded shapes, soft palette, approachable typography.' },
+  { id: 'B', brief: 'Direction B should feel sharp, precise, and confident. Apple-inspired restraint. Typography does the heavy lifting. Minimal decoration, maximum clarity.' },
+  { id: 'C', brief: 'Direction C should feel bold, modern, and premium. High contrast, dramatic type, unexpected design choices. The kind of site that makes you stop scrolling.' },
 ];
 
 async function generateTier1(session) {
-  const contentBlock = buildContentBlock(session);
-  return Promise.all(TIER1_DIRECTIONS.map(async (dir) => {
+  const clientBrief = buildClientBrief(session);
+  return Promise.all(TIER1_DIRECTION_BRIEFS.map(async (dir) => {
     try {
       const response = await anthropic.messages.create({
         model: 'claude-sonnet-4-20250514', max_tokens: 8192,
-        system: `${TIER1_BASE}\n\n${dir.prompt}`,
-        messages: [{ role: 'user', content: contentBlock }],
+        system: `You are an elite web designer building a website prototype for a real client.`,
+        messages: [{ role: 'user', content: `${clientBrief}\n\n${dir.brief}\n\nBuild a complete, self-contained HTML prototype (CSS in <style>, no external dependencies, system font stack, responsive, under 8KB). Use the client's actual business name and content — never invent placeholder content. Include a contact form (action="#") and display their contact info.\n\nOutput only the raw HTML.` }],
       });
-      return { id: dir.id, name: dir.name, desc: dir.desc, type: 'html', content: response.content[0]?.text || '' };
+      // Extract a name and description from the output for the direction card
+      const content = response.content[0]?.text || '';
+      const titleMatch = content.match(/<title>([^<]*)<\/title>/i);
+      return { id: dir.id, name: extractDirectionName(content, dir.id), desc: extractDirectionDesc(content), type: 'html', content };
     } catch (err) {
-      return { id: dir.id, name: dir.name, desc: dir.desc, type: 'html', content: null, error: err.message };
+      return { id: dir.id, name: `Direction ${dir.id}`, desc: '', type: 'html', content: null, error: err.message };
     }
   }));
+}
+
+function extractDirectionName(html, fallbackId) {
+  // Try to get a meaningful name from the page title or hero
+  const titleMatch = html.match(/<title>([^<]*)<\/title>/i);
+  if (titleMatch && titleMatch[1] && titleMatch[1].length < 60) return titleMatch[1];
+  return `Direction ${fallbackId}`;
+}
+
+function extractDirectionDesc(html) {
+  // Try to get the meta description
+  const metaMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["']/i);
+  if (metaMatch && metaMatch[1]) return metaMatch[1].substring(0, 120);
+  return '';
 }
 
 // ── Tier 2: Launchpad ──
@@ -105,18 +104,38 @@ async function generateTier3(session) {
   }
 }
 
+// ── Q&A brief for mockup generator — same philosophy as build engine ──
+
+const MOCKUP_INTAKE_QUESTIONS = {
+  business_name: "What's the name of your business and what do you do?",
+  audience: "Who are your best customers?",
+  goal: "What's the #1 thing you want people to do when they find you online?",
+  feeling: "How should your brand feel?",
+  style: "Any styles, colors, or looks you love — or want to avoid?",
+  problem: "What problem are you trying to solve?",
+  solution: "What's the solution you're imagining?",
+  success: "What does success look like?",
+  timeline: "What's your timeline?",
+};
+
+function buildClientBrief(session) {
+  const pa = session.partial_answers || {};
+  const lines = ['A real client told us about their project. Here are their exact answers:\n'];
+
+  for (const [key, question] of Object.entries(MOCKUP_INTAKE_QUESTIONS)) {
+    const answer = pa[key] || session[key];
+    if (answer) lines.push(`Q: ${question}\nA: ${answer}\n`);
+  }
+
+  if (session.lead_name) lines.push(`Contact: ${session.lead_name}`);
+  if (session.lead_email) lines.push(`Email: ${session.lead_email}`);
+
+  return lines.join('\n');
+}
+
+// Keep old function for tier 2/3 which still use it
 function buildContentBlock(session) {
-  return `PROJECT CONTEXT:
-- Problem: ${session.problem || 'Not specified'}
-- Solution: ${session.solution || 'Not specified'}
-- Audience: ${session.audience || 'Not specified'}
-- Engagement tier: ${session.engagement_tier || 'Not classified'}
-- Tier signals: ${(session.tier_signals || []).join(', ') || 'None'}
-
-SESSION DATA:
-${session.partial_answers ? Object.entries(session.partial_answers).map(([k, v]) => `- ${k}: ${v}`).join('\n') : 'No additional answers available.'}
-
-Generate the directions now based on this specific project.`;
+  return buildClientBrief(session);
 }
 
 // ── Background function handler ──

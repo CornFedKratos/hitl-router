@@ -274,7 +274,7 @@ You are the CTO helping someone with an existing project problem. This is NOT a 
 - Keep it focused: diagnose, advise, resolve or escalate.`
     : session?.user_type === 'lead'
     ? `\n\nIMPORTANT — User context:
-This visitor is exploring S3 Technology for the first time. They may not know what HITL-AI-DLC is.
+This visitor is exploring your services for the first time. They may not know what HITL-AI-DLC is. Never refer to yourself or the team as "S3 Technology" — this is the client's project, not yours. Use "we" or "our team" when referring to who will build their project.
 - Use a warm, explanatory tone — define methodology terms when you first use them
 - Frame Phase 0 as "helping them figure out if their idea is buildable" not as a methodology step
 - Keep jargon minimal — say "project plan" not "execution brief", "feasibility check" not "Phase 0 gate"
@@ -568,6 +568,17 @@ export default async (req) => {
               const chunk = JSON.stringify({ type: 'text', text });
               controller.enqueue(encoder.encode(`data: ${chunk}\n\n`));
             }
+          }
+
+          // Log chat interaction for diagnosis
+          if (sessionId) {
+            const userMsg = anthropicMessages.filter(m => m.role === 'user').pop()?.content || '';
+            supabase.from('kb_entries').insert({
+              session_id: sessionId, phase: 0, entry_type: 'session', visibility: 'internal',
+              author: 'CHAT_LOG',
+              summary: `Chat: ${detectedRole} turn`,
+              details: `SYSTEM:\n${systemPrompt.substring(0, 3000)}\n\nUSER:\n${(typeof userMsg === 'string' ? userMsg : JSON.stringify(userMsg)).substring(0, 2000)}\n\nASSISTANT:\n${fullResponse.substring(0, 5000)}`,
+            }).then(() => {}).catch(() => {});
           }
 
           // 9. Check for signals in the full response
