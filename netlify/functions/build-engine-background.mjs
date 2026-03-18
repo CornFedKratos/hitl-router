@@ -851,18 +851,12 @@ Generate:
 Hand off to CQO.`;
       }
 
-      // ── HIT-72/73: Direct brief — no meta-framing, just the client's voice ──
+      // ── HIT-72/73: Brief only — build instructions are in the two-step process ──
       const creativeBrief = buildCreativeBrief(ctx);
 
-      return `A real client went through our intake process to tell us exactly what they want for their website. ${creativeBrief}
-
-Synthesize everything this client told us into a single-page website that will make them emotional when they see it. They should feel like someone finally understood them.
-
-Build a complete, self-contained HTML file (CSS in <style>, JS in <script>) with a Google Font of your choosing imported via <link>. Make it responsive. Include scroll animations and hover states that feel considered. Include a working contact form (action="#") and display every contact method they gave us.
-
-Never invent stats, portfolio projects, or content the client didn't provide. Write copy in second person. No emoji icons.
-
-Output only the HTML.`;
+      // Return ONLY the brief — no build instructions, no "output only HTML"
+      // The two-step Opus process adds its own instructions per step
+      return creativeBrief;
     }},
   { role: 'CQO', name: 'Chief Quality Officer', tone: 'exacting, quality-focused',
     task: (tier, ctx, prev) => {
@@ -1024,7 +1018,7 @@ export default async (req) => {
             model: 'claude-opus-4-20250514',
             max_tokens: 4096,
             system: 'You are an elite creative director. You make bold, specific design decisions.',
-            messages: [{ role: 'user', content: `A client gave us this brief for their website:\n\n${prompt}\n\nBefore building anything, commit to a specific design direction. Be bold and specific:\n\n1. TYPEFACE: Name the exact Google Font(s) you'd use and why. Not Inter — pick something with personality that matches this client.\n2. PALETTE: Give me exact hex values for primary, accent, background, and text colors. Derive them from the client's emotional brief.\n3. LAYOUT: Describe the overall layout philosophy — dark or light, editorial or corporate, dense or spacious.\n4. HERO: What does the hero section look like? What does the headline say? How does it feel?\n5. SECTIONS: What sections does this specific client need and in what order? Not a generic template — what serves THEM?\n6. PERSONALITY: One sentence describing what makes this site feel different from every other developer portfolio.\n\nBe decisive. No hedging. No "could use" or "might work" — commit.` }],
+            messages: [{ role: 'user', content: `Here is everything a real client told us about what they want for their website:\n\n${prompt}\n\nYou are about to build this client's website. Before writing any code, commit to a specific design direction. Be bold and specific:\n\n1. TYPEFACE: Name the exact Google Font(s) you'd use and why. Not Inter — pick something with personality that matches this client.\n2. PALETTE: Give me exact hex values for primary, accent, background, and text colors. Derive them from the client's emotional brief.\n3. LAYOUT: Describe the overall layout philosophy — dark or light, editorial or corporate, dense or spacious.\n4. HERO: What does the hero section look like? What does the headline say? How does it feel?\n5. SECTIONS: What sections does this specific client need and in what order? Not a generic template — what serves THEM?\n6. PERSONALITY: One sentence describing what makes this site feel different from every other developer portfolio.\n\nBe decisive. No hedging. No "could use" or "might work" — commit.` }],
           });
 
           const designDirection = designResponse.content[0]?.text || '';
@@ -1045,9 +1039,9 @@ export default async (req) => {
             max_tokens: 16000,
             system: 'You are an elite web designer and front-end developer. You build websites that make clients emotional.',
             messages: [
-              { role: 'user', content: `A client gave us this brief:\n\n${prompt}\n\nBefore building, commit to a specific design direction.` },
+              { role: 'user', content: `Here is everything a real client told us about what they want for their website:\n\n${prompt}\n\nCommit to a specific design direction for this client.` },
               { role: 'assistant', content: designDirection },
-              { role: 'user', content: `Perfect. Now build the complete HTML file using exactly the design direction you just committed to. Use the exact typefaces, colors, and layout you specified.\n\nComplete, self-contained HTML (CSS in <style>, JS in <script>). Import your chosen Google Font via <link>. Responsive. Scroll animations. Hover states. Contact form (action="#"). Display every contact method from the brief.\n\nNever invent stats or portfolio projects. No emoji icons.\n\nOutput only the HTML. No markdown fences. No explanation.` }
+              { role: 'user', content: `Now build it. Use exactly the typefaces, colors, layout, and sections you just committed to.\n\nRules:\n- Complete, self-contained HTML file — all CSS in <style>, all JS in <script>\n- Import your chosen Google Font via <link> in <head>\n- Mobile responsive\n- Scroll-reveal animations and meaningful hover states on everything interactive\n- Working contact form (action="#") and display every contact method from the brief\n- Write copy in second person — "you get", not "we provide"\n- Never invent stats, portfolio projects, or content the client didn't give us\n- No emoji icons\n\nOutput ONLY the raw HTML. No markdown fences. No explanation.` }
             ],
           });
 
