@@ -382,13 +382,13 @@ The quality bar is a $25,000 agency build. Here is what that means in practice:
 
 TYPOGRAPHY: Choose 2-3 Google Fonts with personality that match this specific client. Not Inter. Not system fonts. Typography carries the design — weight contrast, letter-spacing, and line-height should all feel intentional. Use clamp() for fluid sizing.
 
-TEXTURE & DEPTH: The site should feel physical, not flat. Choose the techniques that serve THIS client's brief — some possibilities: animated grain/noise overlay, subtle background patterns with CSS mask, radial gradient glows, layered shadows, backdrop-filter, mix-blend-mode. Pick what fits. Don't use all of them — use the ones that create the right feeling.
+TEXTURE & DEPTH: The site should feel physical, not flat. Choose the techniques that serve THIS client's brief. Some examples to consider (but you are not limited to these): animated grain/noise overlay, subtle background patterns with CSS mask, radial gradient glows, layered shadows, backdrop-filter, mix-blend-mode, CSS scroll-snap, animated SVG backgrounds, parallax depth layers. Use what fits. Invent what's missing.
 
 COLOR: Derive your palette from the client's emotional brief — not from a generic category. Use CSS custom properties. Consider whether a dark-background section somewhere would create visual rhythm. Every color should feel derived from what the client told you.
 
 SECTIONS: Build as many sections as this client needs — at least 8, each with its own visual treatment. Think about what actually serves them: a hero that stops the scroll, trust signals, empathy that speaks to their specific pain, their process, their services (with inline SVG icons, not emoji or text abbreviations), a moment of personality or philosophy, contact with every method displayed, and a footer. Add editorial elements (marquee, pull quotes, stat strips) where they serve the narrative.
 
-INTERACTIONS: Make the site feel alive and considered. Scroll-triggered reveals with staggered timing. Hover states on every interactive element. Beyond that, choose signature interactions that match the client's personality — custom cursor, magnetic buttons, text reveal animations, parallax, animated underlines, gradient text — pick what fits, don't use everything.
+INTERACTIONS: Make the site feel alive and considered. Scroll-triggered reveals with staggered timing. Hover states on every interactive element. Beyond that, choose signature interactions that match the client's personality. Some examples (not an exhaustive list): custom cursor with follower, magnetic buttons, text reveal animations, parallax, animated underlines, gradient text, scroll-linked progress, animated counters, tilt effects, smooth section snapping. You know techniques we haven't listed — use them if they serve the client.
 
 COPY: Write in second person. Every headline should speak to THIS client's specific situation — their pain, their audience, their personality. The copy should feel written by someone who deeply understood the brief. Reference their actual words where possible.
 
