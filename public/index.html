@@ -4744,9 +4744,11 @@ function advanceMuse(sid) {
   } else if (screen.type === 'cards') {
     // This or That — render each pair as two clickable cards
     let pairsHtml = '';
+    let allPairsSelected = true;
     screen.pairs.forEach((pair, pi) => {
       const selectedA = museAnswers[screen.id + '_' + pi] === 'a';
       const selectedB = museAnswers[screen.id + '_' + pi] === 'b';
+      if (!selectedA && !selectedB) allPairsSelected = false;
       pairsHtml += `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
           <div class="popup-source-option${selectedA ? ' selected' : ''}" onclick="museCardSelect(${pi}, 'a')" style="padding:14px;cursor:pointer;">
@@ -4766,9 +4768,10 @@ function advanceMuse(sid) {
       <div class="popup-question">${screen.question}</div>
       ${screen.hint ? `<div class="popup-hint">${screen.hint}</div>` : ''}
       <div id="muse-cards">${pairsHtml}</div>
+      ${!allPairsSelected ? '<div style="font-size:12px;color:var(--muted);text-align:center;margin-top:8px;">Pick one from each pair to continue</div>' : ''}
       <div class="popup-actions">
         <button class="popup-back" onclick="musePrev('${sid}')" ${museStep === 0 ? 'disabled' : ''}>&#8592; Back</button>
-        <button class="popup-next" onclick="museNext('${sid}')">Next</button>
+        <button class="popup-next" onclick="museNext('${sid}')" ${!allPairsSelected ? 'disabled' : ''}>Next</button>
       </div>
       ${skipLink}
     `;
@@ -5466,8 +5469,10 @@ async function downloadArtifacts() {
   const outputs = window._buildOutputs || buildOutputs;
   const tier = window._buildTier || 'quick_build';
   const pa = popupAnswers || {};
-  const businessName = pa.business_name || pa.problem || 'project';
-  const slug = businessName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '').replace(/^-+/, '') || 'project';
+  const rawName = pa.business_name || pa.problem || 'project';
+  // Truncate to first word/phrase before any dash or long description
+  const businessName = rawName.split(/\s*[-–—]\s*/)[0].trim() || 'project';
+  const slug = businessName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '').replace(/^-+/, '').substring(0, 40) || 'project';
 
   // Generate README
   const readme = buildReadme(businessName, tier);
