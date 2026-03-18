@@ -688,81 +688,108 @@ function buildSessionContent(ctx) {
   return lines.join('\n');
 }
 
-// ── HIT-72: Full creative brief — pass EVERYTHING the client told us ──
+// ── HIT-72/73: Q&A creative brief — the client's voice, not our framing ──
+
+const INTAKE_QUESTIONS = {
+  // Design path
+  business_name: "What's the name of your business and what do you do?",
+  audience: "Who are your best customers?",
+  goal: "What's the #1 thing you want people to do when they find you online?",
+  feeling: "How should your brand feel? Give me three words.",
+  style: "Any styles, colors, or looks you love — or definitely want to avoid?",
+  // Tech path
+  problem: "What problem are you trying to solve?",
+  solution: "What's the solution you're imagining?",
+  success: "What does success look like for this project?",
+  // Shared
+  client: "Who is this project for?",
+  timeline: "What's your timeline?",
+  stakeholders: "Who else is involved?",
+  existing_systems: "Are there existing systems this needs to connect to?",
+  constraints: "Any technical constraints we should know about?",
+};
+
+const MUSE_QUESTIONS = {
+  inspiration: "Are there any websites, brands, or businesses whose look and feel you admire?",
+  emotion: "When someone lands on your site, what's the first thing you want them to feel?",
+  avoid: "Is there anything you've seen that you definitely don't want?",
+  personality: "If your business were a person, how would you describe them in one sentence?",
+};
+
+const THIS_OR_THAT_PAIRS = [
+  { a: { label: 'Clean & Minimal', desc: 'Like Stripe or Linear — lots of whitespace, simple, editorial' }, b: { label: 'Warm & Personal', desc: 'Like Mailchimp or Basecamp — friendly, approachable, human' } },
+  { a: { label: 'Bold & Dramatic', desc: 'Strong contrast, large type, high energy' }, b: { label: 'Soft & Trustworthy', desc: 'Gentle colors, rounded shapes, professional calm' } },
+  { a: { label: 'Photography-led', desc: 'Big images tell the story' }, b: { label: 'Typography-led', desc: 'Words and layout do the heavy lifting' } },
+];
+
 function buildCreativeBrief(ctx) {
   const pa = ctx.partial_answers || {};
   const muse = ctx.muse_answers || {};
-  const blocks = [];
+  const lines = [];
 
-  // 1. Every popup answer — the client's words, verbatim
-  const answerEntries = Object.entries(pa).filter(([k, v]) => v && !k.startsWith('_'));
-  if (answerEntries.length > 0) {
-    blocks.push('=== WHAT THE CLIENT TOLD US (their exact words from intake) ===');
-    for (const [key, val] of answerEntries) {
-      const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-      blocks.push(`${label}: ${val}`);
+  // Intake Q&A — the actual questions we asked and what they said
+  lines.push('We asked our client these questions during intake. Here are their exact answers:\n');
+  for (const [key, question] of Object.entries(INTAKE_QUESTIONS)) {
+    const answer = pa[key];
+    if (answer) {
+      lines.push(`Q: ${question}\nA: ${answer}\n`);
     }
-    blocks.push('=== END CLIENT INTAKE ===');
   }
 
-  // 2. Full Muse intake — inspiration, preferences, emotions, avoidances, personality
-  const museEntries = Object.entries(muse).filter(([k, v]) => v && (typeof v === 'string' ? v.trim() : true));
-  if (museEntries.length > 0) {
-    blocks.push('\n=== DESIGN PREFERENCES (from the Muse intake — the client\'s creative voice) ===');
-    if (muse.inspiration) blocks.push(`Inspiration & references they admire: ${muse.inspiration}`);
+  // Muse Q&A — design preferences in their own words
+  const hasMuse = muse.inspiration || muse.emotion || muse.avoid || muse.personality ||
+    Object.keys(muse).some(k => k.startsWith('this_or_that_'));
 
-    // This or That — resolve picks back to full labels and descriptions
-    const THIS_OR_THAT_PAIRS = [
-      { a: { label: 'Clean & Minimal', desc: 'Like Stripe or Linear — lots of whitespace, simple, editorial' }, b: { label: 'Warm & Personal', desc: 'Like Mailchimp or Basecamp — friendly, approachable, human' } },
-      { a: { label: 'Bold & Dramatic', desc: 'Strong contrast, large type, high energy' }, b: { label: 'Soft & Trustworthy', desc: 'Gentle colors, rounded shapes, professional calm' } },
-      { a: { label: 'Photography-led', desc: 'Big images tell the story' }, b: { label: 'Typography-led', desc: 'Words and layout do the heavy lifting' } },
-    ];
-    for (const [key, val] of museEntries) {
+  if (hasMuse) {
+    lines.push('\nWe then asked them about their design preferences:\n');
+
+    if (muse.inspiration) {
+      lines.push(`Q: ${MUSE_QUESTIONS.inspiration}\nA: ${muse.inspiration}\n`);
+    }
+
+    // This or That — what they chose and what it means
+    for (const [key, val] of Object.entries(muse)) {
       if (key.startsWith('this_or_that_')) {
         const pairIdx = parseInt(key.split('_').pop(), 10);
         const pair = THIS_OR_THAT_PAIRS[pairIdx];
         if (pair && pair[val]) {
-          blocks.push(`Style preference: "${pair[val].label}" — ${pair[val].desc}`);
+          const rejected = val === 'a' ? pair.b : pair.a;
+          lines.push(`Q: Which direction feels more like you?\nA: They chose "${pair[val].label}" (${pair[val].desc}) over "${rejected.label}" (${rejected.desc})\n`);
         }
       }
     }
 
     if (muse.emotion && Array.isArray(muse.emotion) && muse.emotion.length > 0) {
-      blocks.push(`When someone lands on their site, they want them to feel: ${muse.emotion.join(', ')}`);
+      lines.push(`Q: ${MUSE_QUESTIONS.emotion}\nA: ${muse.emotion.join(', ')}\n`);
     }
-    if (muse.avoid) blocks.push(`What they definitely DON'T want: ${muse.avoid}`);
-    if (muse.personality) blocks.push(`If their business were a person: "${muse.personality}"`);
-    blocks.push('=== END DESIGN PREFERENCES ===');
+    if (muse.avoid) {
+      lines.push(`Q: ${MUSE_QUESTIONS.avoid}\nA: ${muse.avoid}\n`);
+    }
+    if (muse.personality) {
+      lines.push(`Q: ${MUSE_QUESTIONS.personality}\nA: ${muse.personality}\n`);
+    }
   }
 
-  // 3. Carl's design intent synthesis — the creative brief distilled
+  // Carl's synthesis — the creative direction distilled from all of the above
   if (ctx.design_intent) {
-    blocks.push(`\n=== CARL'S CREATIVE DIRECTION (synthesized from the client's answers — this is your primary brief) ===\n${ctx.design_intent}\n=== END CREATIVE DIRECTION ===`);
+    lines.push(`\nOur creative director synthesized all of the above into this design direction:\n\n${ctx.design_intent}\n`);
   }
 
-  // 4. Selected direction — full name and description, not just "A"
+  // Selected direction with full description
   const dirId = ctx.direction;
-  const mockupResults = ctx.mockup_results || {};
-  const directions = mockupResults.directions || [];
+  const directions = (ctx.mockup_results || {}).directions || [];
   const selectedDir = directions.find(d => d.id === dirId);
   if (selectedDir) {
-    blocks.push(`\nSelected Direction: "${selectedDir.name}"\nDirection brief: ${selectedDir.framing || selectedDir.vision || ''}`);
-    if (selectedDir.approach) blocks.push(`Approach: ${selectedDir.approach}`);
-    if (selectedDir.features) blocks.push(`Key features: ${Array.isArray(selectedDir.features) ? selectedDir.features.join(', ') : selectedDir.features}`);
-  } else if (dirId) {
-    blocks.push(`\nSelected Direction: ${dirId}`);
+    lines.push(`\nFrom three mockup directions we presented, the client selected: "${selectedDir.name}"`);
+    if (selectedDir.framing || selectedDir.vision) lines.push(selectedDir.framing || selectedDir.vision);
   }
 
-  // 5. Contact & business details — factual only
-  const contactLines = [];
-  if (ctx.lead_name) contactLines.push(`Name: ${ctx.lead_name}`);
-  if (ctx.lead_email) contactLines.push(`Email: ${ctx.lead_email}`);
-  if (pa.business_name) contactLines.push(`Business: ${pa.business_name}`);
-  if (contactLines.length > 0) {
-    blocks.push(`\n=== CONTACT DETAILS ===\n${contactLines.join('\n')}\n=== END CONTACT ===`);
-  }
+  // Contact details — just the facts
+  lines.push('\nContact details for the site:');
+  if (ctx.lead_name) lines.push(`Name: ${ctx.lead_name}`);
+  if (ctx.lead_email) lines.push(`Email: ${ctx.lead_email}`);
 
-  return blocks.join('\n');
+  return lines.join('\n');
 }
 
 const AGENTS = [
@@ -824,39 +851,18 @@ Generate:
 Hand off to CQO.`;
       }
 
-      // ── HIT-72: Creative-first CDO prompt ──
+      // ── HIT-72/73: Direct brief — no meta-framing, just the client's voice ──
       const creativeBrief = buildCreativeBrief(ctx);
 
-      return `You are a world-class web designer and front-end developer. A real client went through a detailed intake process to tell you exactly what they want. Your job is to read their brief deeply and build something that feels like it was made specifically for them — something they'll show off to everyone they know.
+      return `A real client went through our intake process to tell us exactly what they want for their website. ${creativeBrief}
 
-You have complete creative freedom. Choose your own typefaces (Google Fonts). Choose your own color palette. Decide which sections this client needs and in what order. Make every decision a designer would make — not a template would make.
+Synthesize everything this client told us into a single-page website that will make them emotional when they see it. They should feel like someone finally understood them.
 
-Read every word of this brief. The client's voice is the most important thing in it.
+Build a complete, self-contained HTML file (CSS in <style>, JS in <script>) with a Google Font of your choosing imported via <link>. Make it responsive. Include scroll animations and hover states that feel considered. Include a working contact form (action="#") and display every contact method they gave us.
 
-${creativeBrief}
+Never invent stats, portfolio projects, or content the client didn't provide. Write copy in second person. No emoji icons.
 
-COPY RULES:
-- Write in second person ("you get", "your project") — never third person
-- Headlines are outcome-first: the result the client gets, not what you do
-- Service descriptions: 2 sentences. What they get + what makes it different
-- CTAs: active verb + specific outcome ("Start your project →" not "Submit")
-- Confident but not arrogant. The copy should sound like someone who is very good at what they do.
-
-THE ONLY HARD CONSTRAINTS:
-- Use the client's actual content. Never invent placeholder businesses, names, or stats.
-- If you don't have real numbers, use specific credibility statements — never "100%" or fabricated round numbers.
-- Never fabricate portfolio projects. Use session data or omit the section entirely.
-- No emoji icons anywhere.
-- Include scroll-reveal animations (IntersectionObserver) and meaningful hover states on all interactive elements.
-- Complete, self-contained HTML — all CSS in <style>, all JS in <script>.
-- Import your chosen Google Font via <link> in <head>.
-- Mobile-responsive with viewport meta tag and @media queries.
-- Working contact form with action="#".
-- Include ALL available contact methods from the brief (email, phone, etc.) — not just a form.
-
-Everything else — typeface, palette, layout, section count, section order, spacing, visual details, animations, unexpected design moments — is your call. Make it extraordinary. Make the client feel like someone finally understood them.
-
-Output ONLY the complete HTML. No markdown. No explanation.`;
+Output only the HTML.`;
     }},
   { role: 'CQO', name: 'Chief Quality Officer', tone: 'exacting, quality-focused',
     task: (tier, ctx, prev) => {
@@ -997,7 +1003,7 @@ export default async (req) => {
 
       const prompt = agent.task(tier, ctx, prevOutput);
       const systemPrompt = agent.role === 'CDO'
-        ? `You are a world-class creative director and front-end developer. You build websites that make clients emotional — not templates that check boxes. Take your time. Build something extraordinary.`
+        ? `You are an elite web designer and front-end developer.`
         : `You are the ${agent.name}. Tone: ${agent.tone}. Be concise and deliver directly.`;
 
       // HIT-72: Log the exact prompt sent to each agent — no more guessing
