@@ -358,8 +358,8 @@ export default async (req) => {
       try {
         // ── CDO: Two-step Opus process ──
         if (agent.role === 'CDO' && tier === 'quick_build') {
-          const step1System = 'You are an elite creative director. You make bold, specific design decisions.';
-          const step1User = `Here is everything a real client told us about what they want for their website:\n\n${prompt}\n\nYou are about to build this client's website. Before writing any code, commit to a specific design direction. Be bold and specific:\n\n1. TYPEFACE: Name the exact Google Font(s) you'd use and why. Not Inter — pick something with personality that matches this client.\n2. PALETTE: Give me exact hex values for primary, accent, background, and text colors. Derive them from the client's emotional brief.\n3. LAYOUT: Describe the overall layout philosophy — dark or light, editorial or corporate, dense or spacious.\n4. HERO: What does the hero section look like? What does the headline say? How does it feel?\n5. SECTIONS: What sections does this specific client need and in what order? Not a generic template — what serves THEM?\n6. PERSONALITY: One sentence describing what makes this site feel different from every other developer portfolio.\n\nBe decisive. No hedging. No "could use" or "might work" — commit.`;
+          const step1System = 'You are an elite creative director and front-end architect. You design websites that win awards. You think in textures, depth, motion, and emotional rhythm — not templates.';
+          const step1User = `Here is everything a real client told us about what they want for their website:\n\n${prompt}\n\nYou are about to build this client a website that will make them emotional when they see it. Before writing any code, commit to every design decision. Be bold — this is a $10,000 agency build, not a template.\n\n1. TYPEFACE: Name 2-3 exact Google Fonts and their roles (display, body, mono/accent). Not Inter. Pick fonts with personality that match this specific client's emotional brief.\n\n2. PALETTE: Exact hex values. Primary, accent, background, text, muted. Dark mode or light mode — commit. If dark: what makes it feel luxurious, not generic? If light: what makes it feel warm, not sterile?\n\n3. TEXTURE & DEPTH: What gives this site physical presence? Grain overlay? Subtle background pattern? Radial glows? Layered shadows? Commit to at least 2 texture/depth techniques.\n\n4. HERO: Full-viewport hero. What's the headline? What's the background treatment — gradient, pattern, animation? What makes someone stop scrolling within 2 seconds?\n\n5. SIGNATURE INTERACTION: One unexpected craft detail that makes this site feel hand-built. Custom cursor? Magnetic buttons? Text reveal animation? Parallax element? Staggered entrance timing? Name it.\n\n6. SECTIONS: What sections does this specific client need, in what order, and what's the visual treatment for each? Not hero/services/contact — think about what actually serves THIS client. At least 6 sections.\n\n7. CRAFT DETAILS: Hover states on every element. Scroll-triggered reveals with staggered timing. At least one CSS technique that most sites don't use (clamp typography, backdrop-filter, mix-blend-mode, CSS grid with named areas, animated gradients, etc.)\n\n8. PERSONALITY: One sentence. What makes someone look at this site and say "I could never have built this myself"?\n\nThis output should be 800+ lines of considered HTML/CSS/JS. Not a clean minimalist page — an experience. Commit to every decision now.`;
 
           // Log Step 1 prompt
           await supabase.from('kb_entries').insert({
@@ -389,9 +389,23 @@ export default async (req) => {
             details: designDirection.substring(0, 10000),
           });
 
-          const step2System = 'You are an elite web designer and front-end developer. You build websites that make clients emotional.';
-          const step2Turn1 = `Here is everything a real client told us about what they want for their website:\n\n${prompt}\n\nCommit to a specific design direction for this client.`;
-          const step2Turn3 = `Now build it. Use exactly the typefaces, colors, layout, and sections you just committed to.\n\nRules:\n- Complete, self-contained HTML file — all CSS in <style>, all JS in <script>\n- Import your chosen Google Font via <link> in <head>\n- Mobile responsive\n- Scroll-reveal animations and meaningful hover states on everything interactive\n- Working contact form (action="#") and display every contact method from the brief\n- Write copy in second person — "you get", not "we provide"\n- Never invent stats, portfolio projects, or content the client didn't give us\n- No emoji icons\n\nOutput ONLY the raw HTML. No markdown fences. No explanation.`;
+          const step2System = 'You are an elite front-end developer who writes beautiful, craft-level HTML/CSS/JS. Your output makes other developers study the source code.';
+          const step2Turn1 = `Here is everything a real client told us about what they want for their website:\n\n${prompt}\n\nCommit to a bold, specific design direction for this client.`;
+          const step2Turn3 = `Now build it. Execute every decision you just committed to — the exact fonts, colors, textures, interactions, and craft details you specified.
+
+This must be an 800+ line, craft-level build. Not a clean minimalist page — an experience that makes the client emotional. Execute every texture, every interaction, every typographic detail you committed to above.
+
+Technical requirements:
+- Complete, self-contained HTML file — all CSS in <style>, all JS in <script>
+- Import your chosen Google Fonts via <link> in <head>
+- Mobile responsive with @media queries
+- Every hover state, scroll animation, and interaction you committed to must be implemented
+- Working contact form (action="#") with every contact method from the brief displayed
+- Copy in second person
+- Never invent stats, testimonials, portfolio projects, or content the client didn't provide — if you don't have real testimonials, don't include a testimonials section
+- No emoji icons
+
+Output ONLY the raw HTML. No markdown fences. No explanation.`;
 
           // Log Step 2 prompt
           await supabase.from('kb_entries').insert({
@@ -406,7 +420,7 @@ export default async (req) => {
 
           const buildResponse = await anthropic.messages.create({
             model: 'claude-opus-4-20250514',
-            max_tokens: 16000,
+            max_tokens: 32000,
             system: step2System,
             messages: [
               { role: 'user', content: step2Turn1 },
