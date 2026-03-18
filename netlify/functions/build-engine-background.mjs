@@ -370,7 +370,7 @@ export default async (req) => {
         if (agent.role === 'CDO' && tier === 'quick_build') {
           await supabase.from('sessions').update({ build_phase: 'cdo_build' }).eq('id', session_id);
 
-          const cdoSystem = `You build websites that make clients emotional. You are an elite designer and front-end developer. Your output is a $25,000 agency-quality, one-of-a-kind website — not a template. You write 1500+ lines of considered, craft-level HTML/CSS/JS.`;
+          const cdoSystem = `You build websites that make clients emotional. You are an elite designer and front-end developer. Your output is a $25,000 agency-quality, one-of-a-kind website — not a template.`;
 
           const cdoPrompt = `A paying client invested in a custom website. Here is their complete brief — every answer they gave us, their design preferences, and our creative director's synthesis. Read it deeply. Their voice matters more than any instruction.
 
@@ -378,25 +378,27 @@ ${prompt}
 
 Now build their website. One complete HTML file. Make them feel like someone finally understood them.
 
+USE EVERYTHING: The client told you about their competitors, their personality, their audience's pain, their inspiration sites, what they love, what they hate. Nothing they said should go unused. If they named competitors, position against them. If they described their personality, put it in the copy. If they said what their audience has been through, speak directly to that experience. Every answer they gave should be reflected somewhere in the site — in the copy, in the design choices, in the sections you build. The depth of this site should match the depth of what they shared with us.
+
 The quality bar is a $25,000 agency build. Here is what that means in practice:
 
-TYPOGRAPHY: Choose 2-3 Google Fonts with personality that match this specific client. Not Inter. Not system fonts. Typography carries the design — weight contrast, letter-spacing, and line-height should all feel intentional. Use clamp() for fluid sizing.
+TYPOGRAPHY: Choose 2-3 Google Fonts with personality that match this specific client — a display/serif for headlines, a clean sans for body, and a mono for labels and accents. Not Inter. Not system fonts. Typography carries the design — weight contrast, letter-spacing, and line-height should all feel intentional. Use clamp() for fluid sizing.
 
-TEXTURE & DEPTH: The site should feel physical, not flat. Choose the techniques that serve THIS client's brief. Some examples to consider (but you are not limited to these): animated grain/noise overlay, subtle background patterns with CSS mask, radial gradient glows, layered shadows, backdrop-filter, mix-blend-mode, CSS scroll-snap, animated SVG backgrounds, parallax depth layers. Use what fits. Invent what's missing.
+TEXTURE & DEPTH: The site should feel physical, not flat. Choose the techniques that serve THIS client's brief. Some examples to consider (but you are not limited to these): animated grain/noise overlay with keyframe shifting, subtle background patterns with CSS mask, radial gradient glows, layered shadows, backdrop-filter, mix-blend-mode, CSS scroll-snap, animated SVG backgrounds, parallax depth layers. Use what fits. Invent what's missing.
 
-COLOR: Derive your palette from the client's emotional brief — not from a generic category. Use CSS custom properties. Consider whether a dark-background section somewhere would create visual rhythm. Every color should feel derived from what the client told you.
+COLOR: Derive your palette from the client's emotional brief — not from a generic category. Use CSS custom properties. Include at least one dark-background section to break the visual rhythm and create contrast. Every color should feel derived from what the client told you.
 
-SECTIONS: Build as many sections as this client needs — at least 8, each with its own visual treatment. Think about what actually serves them: a hero that stops the scroll, trust signals, empathy that speaks to their specific pain, their process, their services (with inline SVG icons, not emoji or text abbreviations), a moment of personality or philosophy, contact with every method displayed, and a footer. Add editorial elements (marquee, pull quotes, stat strips) where they serve the narrative.
+SECTIONS: This client gave you enough information to build 10+ meaningful sections — not padding, but depth. Think about what serves them: a hero that stops the scroll, a trust stat strip, an empathy section that speaks to their specific pain (using their audience's actual frustrations), their approach/process, their services (with inline SVG icons), how they're different from competitors they named, a philosophy or personality moment that reflects who they told you they are, a contact section with every method displayed, and a footer. Add editorial elements (marquee strips, pull quotes, dark contrast sections) where they serve the narrative. Every section should have its own distinct visual treatment.
 
-INTERACTIONS: Make the site feel alive and considered. Scroll-triggered reveals with staggered timing. Hover states on every interactive element. Beyond that, choose signature interactions that match the client's personality. Some examples (not an exhaustive list): custom cursor with follower, magnetic buttons, text reveal animations, parallax, animated underlines, gradient text, scroll-linked progress, animated counters, tilt effects, smooth section snapping. You know techniques we haven't listed — use them if they serve the client.
+INTERACTIONS: Make the site feel alive and considered. Scroll-triggered reveals with staggered timing. Hover states on every interactive element. Beyond that, choose signature interactions that match the client's personality. Some examples (not an exhaustive list): custom cursor with ring follower, magnetic buttons, line-by-line text reveal animations, parallax, animated underlines, gradient text, scroll-linked progress, animated counters, tilt effects, smooth section snapping. You know techniques we haven't listed — use them if they serve the client.
 
-COPY: Write in second person. Every headline should speak to THIS client's specific situation — their pain, their audience, their personality. The copy should feel written by someone who deeply understood the brief. Reference their actual words where possible.
+COPY: Write in second person. Every headline should speak to THIS client's specific situation — their pain, their audience, their personality. Use their own language where possible. If they said their business is "the expert who doesn't let anyone know they are the expert until they ask" — that should be in the site somewhere. If their audience has "been burnt by other agencies" — speak directly to that wound. The copy should feel like it was written by someone who read every word of the brief and cared about getting it right.
 
-CONTENT INTEGRITY: Never invent statistics, testimonials, portfolio projects, or content the client didn't provide. If you don't have real data, build something better instead. Stats must be real or reframed as credibility statements. Use inline SVG for all icons.
+CONTENT INTEGRITY: Never invent statistics, testimonials, portfolio projects, or content the client didn't provide. If you don't have real data, build something better instead — a credibility statement, a philosophy moment, a direct address to the reader's skepticism. Stats must be real or reframed cleverly. Use inline SVG for all icons.
 
 TECHNICAL: Complete self-contained HTML — all CSS in <style>, all JS in <script>. Import Google Fonts via <link>. Mobile responsive with @media queries. Working contact form (action="#"). Semantic HTML5. No emoji icons.
 
-This should be 1500+ lines. Not because length matters — because craft at this level requires depth. Every section should have its own visual personality. Every interaction should feel considered. Every build should feel like a one-of-a-kind creation for this specific client.
+The minimum is 1,500 lines — but the depth of the client's brief supports 2,000+. Not because length matters, but because this client gave you enough to build something with real substance. Every section should have its own visual personality. Every interaction should feel considered. Every build should feel like a one-of-a-kind creation that could only exist for this specific client.
 
 Output ONLY the raw HTML. No markdown fences. No explanation. No preamble.`;
 
