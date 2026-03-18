@@ -2,7 +2,10 @@ import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 import { sendNotification } from './notify.mjs';
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+  timeout: 15 * 60 * 1000, // 15 minutes — Opus builds can take a while
+});
 
 const supabase = createClient(
   process.env.SUPABASE_URL || 'https://ttvhafsvfhsanyucmcuw.supabase.co',
@@ -379,12 +382,13 @@ export default async (req) => {
           // Step 1: Design direction commit (Opus)
           await supabase.from('sessions').update({ build_phase: 'cdo_design' }).eq('id', session_id);
 
-          const designResponse = await anthropic.messages.create({
+          const designStream = anthropic.messages.stream({
             model: 'claude-opus-4-20250514',
             max_tokens: 4096,
             system: step1System,
             messages: [{ role: 'user', content: step1User }],
           });
+          const designResponse = await designStream.finalMessage();
 
           const designDirection = designResponse.content[0]?.text || '';
 
@@ -425,7 +429,7 @@ Output ONLY the raw HTML. No markdown fences. No explanation.`;
           // Step 2: Build HTML from that direction (Opus)
           await supabase.from('sessions').update({ build_phase: 'cdo_build' }).eq('id', session_id);
 
-          const buildResponse = await anthropic.messages.create({
+          const buildStream = anthropic.messages.stream({
             model: 'claude-opus-4-20250514',
             max_tokens: 32000,
             system: step2System,
@@ -435,6 +439,8 @@ Output ONLY the raw HTML. No markdown fences. No explanation.`;
               { role: 'user', content: step2Turn3 },
             ],
           });
+
+          const buildResponse = await buildStream.finalMessage();
 
           let cdoOutput = buildResponse.content
             .filter(b => b.type === 'text')
