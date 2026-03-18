@@ -97,23 +97,31 @@ function buildCreativeBrief(ctx) {
   const muse = ctx.muse_answers || {};
   const lines = [];
 
-  lines.push('We asked our client these questions during intake. Here are their exact answers:\n');
-  for (const [key, question] of Object.entries(INTAKE_QUESTIONS)) {
-    const answer = pa[key];
-    if (answer) {
-      lines.push(`Q: ${question}\nA: ${answer}\n`);
-    }
-  }
+  // Extract just the business name (before any dash/description)
+  const businessName = (pa.business_name || '').split(/\s*[-–—]\s*/)[0].trim() || 'the business';
+  const businessDesc = (pa.business_name || '').includes('-') ? (pa.business_name || '').split(/\s*[-–—]\s*/).slice(1).join(' — ').trim() : '';
 
+  // Narrative opening — not a form, a briefing
+  lines.push(`We're building a website for ${businessName}.${businessDesc ? ` ${businessDesc}.` : ''}`);
+  lines.push(`This is a paying client who chose to invest in a custom-built site. The output will be downloaded, deployed, and shown to their customers. It needs to be extraordinary.\n`);
+
+  // Client's own words — organized by topic, not by form field
+  if (pa.audience) lines.push(`Their target audience: ${pa.audience}`);
+  if (pa.goal) lines.push(`The #1 thing they want visitors to do: ${pa.goal}`);
+  if (pa.feeling) lines.push(`How the brand should feel: ${pa.feeling}`);
+  if (pa.style) lines.push(`Style preferences: ${pa.style}`);
+  if (ctx.problem) lines.push(`The problem they're solving: ${ctx.problem}`);
+  if (ctx.solution) lines.push(`Their solution: ${ctx.solution}`);
+  if (pa.timeline) lines.push(`Timeline: ${pa.timeline}`);
+
+  // Muse design preferences — narrative, not Q&A
   const hasMuse = muse.inspiration || muse.emotion || muse.avoid || muse.personality ||
     Object.keys(muse).some(k => k.startsWith('this_or_that_'));
 
   if (hasMuse) {
-    lines.push('\nWe then asked them about their design preferences:\n');
+    lines.push('\nDesign preferences (in the client\'s own words):');
 
-    if (muse.inspiration) {
-      lines.push(`Q: ${MUSE_QUESTIONS.inspiration}\nA: ${muse.inspiration}\n`);
-    }
+    if (muse.inspiration) lines.push(`Sites they admire: ${muse.inspiration}`);
 
     for (const [key, val] of Object.entries(muse)) {
       if (key.startsWith('this_or_that_')) {
@@ -121,35 +129,34 @@ function buildCreativeBrief(ctx) {
         const pair = THIS_OR_THAT_PAIRS[pairIdx];
         if (pair && pair[val]) {
           const rejected = val === 'a' ? pair.b : pair.a;
-          lines.push(`Q: Which direction feels more like you?\nA: They chose "${pair[val].label}" (${pair[val].desc}) over "${rejected.label}" (${rejected.desc})\n`);
+          lines.push(`They prefer "${pair[val].label}" (${pair[val].desc}) over "${rejected.label}"`);
         }
       }
     }
 
     if (muse.emotion && Array.isArray(muse.emotion) && muse.emotion.length > 0) {
-      lines.push(`Q: ${MUSE_QUESTIONS.emotion}\nA: ${muse.emotion.join(', ')}\n`);
+      lines.push(`First impression they want visitors to feel: ${muse.emotion.join(', ')}`);
     }
-    if (muse.avoid) {
-      lines.push(`Q: ${MUSE_QUESTIONS.avoid}\nA: ${muse.avoid}\n`);
-    }
-    if (muse.personality) {
-      lines.push(`Q: ${MUSE_QUESTIONS.personality}\nA: ${muse.personality}\n`);
-    }
+    if (muse.avoid) lines.push(`What they definitely don't want: ${muse.avoid}`);
+    if (muse.personality) lines.push(`If their business were a person: "${muse.personality}"`);
   }
 
+  // Carl's synthesis — the creative direction
   if (ctx.design_intent) {
-    lines.push(`\nOur creative director synthesized all of the above into this design direction:\n\n${ctx.design_intent}\n`);
+    lines.push(`\nOur creative director's design direction:\n${ctx.design_intent}`);
   }
 
+  // Selected direction
   const dirId = ctx.direction;
   const directions = (ctx.mockup_results || {}).directions || [];
   const selectedDir = directions.find(d => d.id === dirId);
   if (selectedDir) {
-    lines.push(`\nFrom three mockup directions we presented, the client selected: "${selectedDir.name}"`);
+    lines.push(`\nFrom three directions we presented, they selected: "${selectedDir.name}"`);
     if (selectedDir.framing || selectedDir.vision) lines.push(selectedDir.framing || selectedDir.vision);
   }
 
-  lines.push('\nContact details for the site:');
+  // Contact details
+  lines.push(`\nContact details to display on the site:`);
   if (ctx.lead_name) lines.push(`Name: ${ctx.lead_name}`);
   if (ctx.lead_email) lines.push(`Email: ${ctx.lead_email}`);
 
@@ -429,10 +436,15 @@ Output ONLY the raw HTML. No markdown fences. No explanation.`;
             ],
           });
 
-          outputs[agent.role] = buildResponse.content
+          let cdoOutput = buildResponse.content
             .filter(b => b.type === 'text')
             .map(b => b.text)
             .join('') || '';
+
+          // Strip markdown fences if present
+          cdoOutput = cdoOutput.replace(/^```html?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+
+          outputs[agent.role] = cdoOutput;
 
         } else {
           // All other agents: standard Sonnet call
