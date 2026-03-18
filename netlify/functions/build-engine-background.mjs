@@ -987,12 +987,21 @@ export default async (req) => {
       await supabase.from('sessions').update({ build_phase: agent.role.toLowerCase() }).eq('id', session_id);
 
       const prompt = agent.task(tier, ctx, prevOutput);
+      const systemPrompt = `You are the ${agent.name}. Tone: ${agent.tone}. Be concise and deliver directly.`;
+
+      // HIT-72: Log the exact prompt sent to each agent — no more guessing
+      await supabase.from('kb_entries').insert({
+        session_id, phase: 1, entry_type: 'session', visibility: 'internal',
+        author: `${agent.role}_PROMPT`,
+        summary: `${agent.name} — Prompt Sent`,
+        details: `=== SYSTEM PROMPT ===\n${systemPrompt}\n=== END SYSTEM ===\n\n=== USER PROMPT ===\n${prompt}\n=== END USER PROMPT ===`.substring(0, 50000),
+      });
 
       try {
         const response = await anthropic.messages.create({
           model: 'claude-sonnet-4-20250514',
           max_tokens: agent.role === 'CDO' ? 16000 : 4096,
-          system: `You are the ${agent.name}. Tone: ${agent.tone}. Be concise and deliver directly.`,
+          system: systemPrompt,
           messages: [{ role: 'user', content: prompt }],
         });
         outputs[agent.role] = response.content[0]?.text || '';
