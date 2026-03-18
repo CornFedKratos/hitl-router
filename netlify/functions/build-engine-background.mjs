@@ -711,10 +711,19 @@ function buildCreativeBrief(ctx) {
     blocks.push('\n=== DESIGN PREFERENCES (from the Muse intake — the client\'s creative voice) ===');
     if (muse.inspiration) blocks.push(`Inspiration & references they admire: ${muse.inspiration}`);
 
-    // This or That — pass the full picks with descriptions
+    // This or That — resolve picks back to full labels and descriptions
+    const THIS_OR_THAT_PAIRS = [
+      { a: { label: 'Clean & Minimal', desc: 'Like Stripe or Linear — lots of whitespace, simple, editorial' }, b: { label: 'Warm & Personal', desc: 'Like Mailchimp or Basecamp — friendly, approachable, human' } },
+      { a: { label: 'Bold & Dramatic', desc: 'Strong contrast, large type, high energy' }, b: { label: 'Soft & Trustworthy', desc: 'Gentle colors, rounded shapes, professional calm' } },
+      { a: { label: 'Photography-led', desc: 'Big images tell the story' }, b: { label: 'Typography-led', desc: 'Words and layout do the heavy lifting' } },
+    ];
     for (const [key, val] of museEntries) {
       if (key.startsWith('this_or_that_')) {
-        blocks.push(`Style preference: chose "${val}" direction`);
+        const pairIdx = parseInt(key.split('_').pop(), 10);
+        const pair = THIS_OR_THAT_PAIRS[pairIdx];
+        if (pair && pair[val]) {
+          blocks.push(`Style preference: "${pair[val].label}" — ${pair[val].desc}`);
+        }
       }
     }
 
@@ -987,7 +996,9 @@ export default async (req) => {
       await supabase.from('sessions').update({ build_phase: agent.role.toLowerCase() }).eq('id', session_id);
 
       const prompt = agent.task(tier, ctx, prevOutput);
-      const systemPrompt = `You are the ${agent.name}. Tone: ${agent.tone}. Be concise and deliver directly.`;
+      const systemPrompt = agent.role === 'CDO'
+        ? `You are a world-class creative director and front-end developer. You build websites that make clients emotional — not templates that check boxes. Take your time. Build something extraordinary.`
+        : `You are the ${agent.name}. Tone: ${agent.tone}. Be concise and deliver directly.`;
 
       // HIT-72: Log the exact prompt sent to each agent — no more guessing
       await supabase.from('kb_entries').insert({

@@ -5129,12 +5129,10 @@ async function pollPaymentStatus(sid) {
 
 function onPaymentConfirmed(sid) {
   document.getElementById('paywall-panel').classList.remove('visible');
-  // HIT-62: Muse intake before build (design path only)
-  if (needType === 'design') {
-    showMuseIntake(sid);
-  } else {
-    startBuildEngine(sid);
-  }
+  // HIT-73: Muse intake fires for ALL quick_build sessions
+  // needType gate was broken — null need_type bypassed Muse entirely
+  // Design preferences are valuable regardless of entry path
+  showMuseIntake(sid);
 }
 
 // Also check URL params for return from Stripe redirect (fallback)
