@@ -762,11 +762,60 @@
       transition: background 0.4s;
     }
     .build-progress-step.done { background: #6EE7B7; }
-    .build-progress-step.active { background: var(--blue); }
+    .build-progress-step.active { background: var(--blue); animation: pulse-step 1.5s ease-in-out infinite; }
+    @keyframes pulse-step { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
     .build-step-label {
       font-family: 'JetBrains Mono', monospace;
       font-size: 11px;
       color: var(--muted);
+    }
+    /* HIT-78: Activity feed */
+    .build-activity {
+      padding: 16px 0;
+    }
+    .build-activity-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 0;
+      font-size: 13px;
+      color: var(--muted);
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+    .build-activity-item.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .build-activity-item.done { opacity: 0.4; }
+    .build-activity-item.active { color: var(--text); font-weight: 500; }
+    .build-activity-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--border); flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    .build-activity-item.done .build-activity-dot { background: #6EE7B7; }
+    .build-activity-item.active .build-activity-dot { background: var(--blue); animation: pulse-step 1.5s ease-in-out infinite; }
+    /* HIT-78: Tip card */
+    .build-tip {
+      margin-top: 16px;
+      padding: 14px 18px;
+      background: rgba(59,159,231,0.08);
+      border: 1px solid rgba(59,159,231,0.15);
+      border-radius: 10px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.6;
+      transition: opacity 0.4s ease;
+    }
+    .build-tip-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--blue);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
     }
     .build-output {
       background: var(--surface);
@@ -1509,22 +1558,25 @@
     .scroll-pill {
       display: none;
       position: fixed;
-      bottom: 90px;
+      bottom: 80px;
       left: 50%;
       transform: translateX(-50%);
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 6px 16px;
-      font-size: 12px;
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      font-size: 16px;
       color: var(--muted);
       cursor: pointer;
       z-index: 40;
       box-shadow: 0 4px 16px rgba(0,0,0,0.3);
       transition: all 0.2s;
+      align-items: center;
+      justify-content: center;
     }
-    .scroll-pill:hover { color: var(--text); border-color: var(--blue); }
-    .scroll-pill.visible { display: block; }
+    .scroll-pill:hover { color: var(--text); border-color: var(--blue); transform: translateX(-50%) translateY(-2px); }
+    .scroll-pill.visible { display: flex; }
 
     /* ── Phase markers ── */
     .phase-marker {
@@ -1998,7 +2050,7 @@
   </div>
 
   <!-- Scroll to bottom pill -->
-  <div class="scroll-pill" id="scroll-pill" onclick="smoothScrollToBottom()">&#8595; New messages</div>
+  <div class="scroll-pill" id="scroll-pill" onclick="smoothScrollToBottom()" aria-label="Scroll to latest">&#8595;</div>
 
   <!-- Chat Area -->
   <div class="chat-area" id="chat-area">
@@ -4078,7 +4130,10 @@ function initScrollAwareness() {
   const area = document.getElementById('chat-area');
   if (!area) return;
 
+  let programmaticScrolling = false;
+
   area.addEventListener('scroll', () => {
+    if (programmaticScrolling) return; // HIT-77: suppress during programmatic scroll
     const atBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 100;
     userHasScrolled = !atBottom;
 
@@ -4087,12 +4142,19 @@ function initScrollAwareness() {
       pill.classList.toggle('visible', userHasScrolled);
     }
   });
+
+  // HIT-77: Mark programmatic scrolls to suppress pill
+  window._suppressScrollPill = () => {
+    programmaticScrolling = true;
+    setTimeout(() => { programmaticScrolling = false; }, 500);
+  };
 }
 initScrollAwareness();
 
 function smoothScrollToBottom() {
   const area = document.getElementById('chat-area');
   if (area) {
+    if (window._suppressScrollPill) window._suppressScrollPill();
     area.scrollTo({ top: area.scrollHeight, behavior: 'smooth' });
     userHasScrolled = false;
     const pill = document.getElementById('scroll-pill');
@@ -4403,6 +4465,7 @@ function updateStreamingMessage(msg, text, agentRole) {
 // ── Scroll ──
 function scrollToBottom() {
   if (!userHasScrolled) {
+    if (window._suppressScrollPill) window._suppressScrollPill();
     chatArea.scrollTo({ top: chatArea.scrollHeight, behavior: 'smooth' });
   }
 }
@@ -5259,25 +5322,89 @@ async function startBuildEngine(sid) {
 
   buildOutputs = {};
 
-  // HIT-63: Content-aware loading messages
+  // HIT-78: Activity feed milestones
   const pa = popupAnswers || {};
-  const bName = pa.business_name || pa.problem || 'your project';
-  const bFeeling = pa.feeling || '';
-  const bAudience = pa.audience || '';
-  const contentBuildMsgs = [
-    `Reading everything you shared about ${bName}...`,
-    bFeeling ? `Translating your "${bFeeling}" direction into visual language...` : 'Setting the visual direction...',
-    bAudience ? `Styling for your ${bAudience} audience...` : 'Building the layout...',
-    'Adding your services with the right hierarchy...',
-    'Building the hero section...',
-    'Finishing your contact form and footer...',
-    'Almost done \u2014 final polish...',
+  const bName = (pa.business_name || pa.problem || 'your project').split(/\s*[-–—]\s*/)[0].trim();
+  const activityMilestones = [
+    `Reading your brief for ${bName}...`,
+    'Choosing typography and palette...',
+    'Writing hero copy...',
+    'Building sections and layout...',
+    'Crafting service descriptions...',
+    'Adding animations and interactions...',
+    'Building your contact section...',
+    'Final polish and review...',
+    'Almost ready...',
   ];
-  LOADING_MESSAGES._content_build = contentBuildMsgs;
-  startLoadingMessages('_content_build');
 
-  // Show loading in output area
-  output.innerHTML = '<div id="build-loading-msg" style="text-align:center;padding:20px;color:var(--muted);font-size:14px;transition:opacity 0.3s;"></div>';
+  // HIT-78: Tip cards
+  const tipCards = [
+    'Your site is mobile-first and will look great on any device.',
+    'The contact form is pre-configured — connect it to Netlify Forms or Formspree and you\'re live.',
+    'Every section animates in as visitors scroll — smooth, purposeful, nothing gratuitous.',
+    'Your SEO meta tags and Open Graph data are pre-built for search and social sharing.',
+    'The HTML file is fully self-contained — one file, no dependencies, deploy anywhere.',
+    'All hover states and micro-interactions are built in — buttons lift, cards respond, links animate.',
+    'You can deploy this to Netlify, Vercel, or GitHub Pages in under 5 minutes.',
+    'Your site uses custom Google Fonts chosen specifically for your brand personality.',
+  ];
+  // Shuffle tips
+  for (let i = tipCards.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [tipCards[i], tipCards[j]] = [tipCards[j], tipCards[i]];
+  }
+
+  // Render activity feed + tip card
+  output.innerHTML = `
+    <div class="build-activity" id="build-activity">
+      ${activityMilestones.map((m, i) => `
+        <div class="build-activity-item" data-idx="${i}">
+          <div class="build-activity-dot"></div>
+          <span>${m}</span>
+        </div>
+      `).join('')}
+    </div>
+    <div class="build-tip" id="build-tip">
+      <div class="build-tip-label">Did you know?</div>
+      <div id="build-tip-text">${tipCards[0]}</div>
+    </div>
+  `;
+
+  // Progressively reveal milestones based on time
+  let milestoneIdx = 0;
+  const milestoneInterval = setInterval(() => {
+    const items = document.querySelectorAll('.build-activity-item');
+    if (milestoneIdx > 0 && items[milestoneIdx - 1]) {
+      items[milestoneIdx - 1].classList.remove('active');
+      items[milestoneIdx - 1].classList.add('done');
+    }
+    if (milestoneIdx < items.length) {
+      items[milestoneIdx].classList.add('visible', 'active');
+      milestoneIdx++;
+    }
+  }, 20000 / activityMilestones.length); // spread across ~20 seconds, then loop
+
+  // Rotate tip cards every 12 seconds
+  let tipIdx = 0;
+  const tipInterval = setInterval(() => {
+    tipIdx = (tipIdx + 1) % tipCards.length;
+    const tipEl = document.getElementById('build-tip-text');
+    if (tipEl) {
+      tipEl.style.opacity = '0';
+      setTimeout(() => {
+        tipEl.textContent = tipCards[tipIdx];
+        tipEl.style.opacity = '1';
+      }, 300);
+    }
+  }, 12000);
+
+  // Show first milestone immediately
+  const firstItem = document.querySelector('.build-activity-item[data-idx="0"]');
+  if (firstItem) { firstItem.classList.add('visible', 'active'); milestoneIdx = 1; }
+
+  // Store intervals for cleanup
+  window._buildMilestoneInterval = milestoneInterval;
+  window._buildTipInterval = tipInterval;
 
   try {
     // Trigger background build
@@ -5337,9 +5464,16 @@ async function startBuildEngine(sid) {
 
       if (result.status === 'complete') {
         stopLoadingMessages();
+        if (window._buildMilestoneInterval) clearInterval(window._buildMilestoneInterval);
+        if (window._buildTipInterval) clearInterval(window._buildTipInterval);
         stepLabel.textContent = 'Build complete';
         progress.querySelectorAll('.build-progress-step').forEach(s => s.className = 'build-progress-step done');
-        output.innerHTML = '<div style="text-align:center;padding:20px;color:#6EE7B7;font-size:14px;">Build complete. Your project is ready.</div>';
+        // Mark all milestones done
+        document.querySelectorAll('.build-activity-item').forEach(el => {
+          el.classList.add('visible', 'done');
+          el.classList.remove('active');
+        });
+        output.querySelector('.build-tip')?.remove();
         showArtifactDelivery(sid, result.tier, result.outputs);
         return;
       }
@@ -5751,6 +5885,8 @@ function updateLoadingMessage() {
 
 function stopLoadingMessages() {
   if (loadingInterval) { clearInterval(loadingInterval); loadingInterval = null; }
+  if (window._buildMilestoneInterval) { clearInterval(window._buildMilestoneInterval); window._buildMilestoneInterval = null; }
+  if (window._buildTipInterval) { clearInterval(window._buildTipInterval); window._buildTipInterval = null; }
 }
 
 // ── HIT-51: Mockup retry state ──
