@@ -688,6 +688,74 @@ function buildSessionContent(ctx) {
   return lines.join('\n');
 }
 
+// ── HIT-72: Full creative brief — pass EVERYTHING the client told us ──
+function buildCreativeBrief(ctx) {
+  const pa = ctx.partial_answers || {};
+  const muse = ctx.muse_answers || {};
+  const blocks = [];
+
+  // 1. Every popup answer — the client's words, verbatim
+  const answerEntries = Object.entries(pa).filter(([k, v]) => v && !k.startsWith('_'));
+  if (answerEntries.length > 0) {
+    blocks.push('=== WHAT THE CLIENT TOLD US (their exact words from intake) ===');
+    for (const [key, val] of answerEntries) {
+      const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      blocks.push(`${label}: ${val}`);
+    }
+    blocks.push('=== END CLIENT INTAKE ===');
+  }
+
+  // 2. Full Muse intake — inspiration, preferences, emotions, avoidances, personality
+  const museEntries = Object.entries(muse).filter(([k, v]) => v && (typeof v === 'string' ? v.trim() : true));
+  if (museEntries.length > 0) {
+    blocks.push('\n=== DESIGN PREFERENCES (from the Muse intake — the client\'s creative voice) ===');
+    if (muse.inspiration) blocks.push(`Inspiration & references they admire: ${muse.inspiration}`);
+
+    // This or That — pass the full picks with descriptions
+    for (const [key, val] of museEntries) {
+      if (key.startsWith('this_or_that_')) {
+        blocks.push(`Style preference: chose "${val}" direction`);
+      }
+    }
+
+    if (muse.emotion && Array.isArray(muse.emotion) && muse.emotion.length > 0) {
+      blocks.push(`When someone lands on their site, they want them to feel: ${muse.emotion.join(', ')}`);
+    }
+    if (muse.avoid) blocks.push(`What they definitely DON'T want: ${muse.avoid}`);
+    if (muse.personality) blocks.push(`If their business were a person: "${muse.personality}"`);
+    blocks.push('=== END DESIGN PREFERENCES ===');
+  }
+
+  // 3. Carl's design intent synthesis — the creative brief distilled
+  if (ctx.design_intent) {
+    blocks.push(`\n=== CARL'S CREATIVE DIRECTION (synthesized from the client's answers — this is your primary brief) ===\n${ctx.design_intent}\n=== END CREATIVE DIRECTION ===`);
+  }
+
+  // 4. Selected direction — full name and description, not just "A"
+  const dirId = ctx.direction;
+  const mockupResults = ctx.mockup_results || {};
+  const directions = mockupResults.directions || [];
+  const selectedDir = directions.find(d => d.id === dirId);
+  if (selectedDir) {
+    blocks.push(`\nSelected Direction: "${selectedDir.name}"\nDirection brief: ${selectedDir.framing || selectedDir.vision || ''}`);
+    if (selectedDir.approach) blocks.push(`Approach: ${selectedDir.approach}`);
+    if (selectedDir.features) blocks.push(`Key features: ${Array.isArray(selectedDir.features) ? selectedDir.features.join(', ') : selectedDir.features}`);
+  } else if (dirId) {
+    blocks.push(`\nSelected Direction: ${dirId}`);
+  }
+
+  // 5. Contact & business details — factual only
+  const contactLines = [];
+  if (ctx.lead_name) contactLines.push(`Name: ${ctx.lead_name}`);
+  if (ctx.lead_email) contactLines.push(`Email: ${ctx.lead_email}`);
+  if (pa.business_name) contactLines.push(`Business: ${pa.business_name}`);
+  if (contactLines.length > 0) {
+    blocks.push(`\n=== CONTACT DETAILS ===\n${contactLines.join('\n')}\n=== END CONTACT ===`);
+  }
+
+  return blocks.join('\n');
+}
+
 const AGENTS = [
   { role: 'CPO', name: 'Chief Product Officer', tone: 'warm, strategic',
     task: (tier, ctx) => {
@@ -729,12 +797,11 @@ End with handoff to CDO.`;
     }},
   { role: 'CDO', name: 'Chief Design Officer', tone: 'creative, visual',
     task: (tier, ctx) => {
-      const content = buildSessionContent(ctx);
       const pa = ctx.partial_answers || {};
       const category = detectBusinessCategory(pa);
-      const museAnswers = ctx.muse_answers || {};
 
       if (tier !== 'quick_build') {
+        const content = buildSessionContent(ctx);
         return `You are the CDO creating a design direction for this specific project.
 
 ${content}
@@ -748,123 +815,39 @@ Generate:
 Hand off to CQO.`;
       }
 
-      // ── Build the CDO prompt in strict hierarchy ──
+      // ── HIT-72: Creative-first CDO prompt ──
+      const creativeBrief = buildCreativeBrief(ctx);
 
-      // 1. Quality standard
-      const qualityBlock = `QUALITY STANDARD:
-You are producing a site that must feel like a $3,000 custom build, not a free template.
-Before generating, ask yourself:
-- Would a design-conscious client be proud to show this to their best customer?
-- Does every section have a reason to exist beyond "most sites have this"?
-- Does the visual language reflect the business category and emotional intent?
-- Are the stats/numbers real and meaningful, or placeholder-shaped?
-- Does the hero say something specific, or could it apply to any business?
-- Does the typography feel intentional — weight contrast, letter-spacing, line-height all considered?
-- Would a designer look at this and say "someone cared"?
-If the answer to any is no — revise until yes.`;
+      return `You are a world-class web designer and front-end developer. A real client went through a detailed intake process to tell you exactly what they want. Your job is to read their brief deeply and build something that feels like it was made specifically for them — something they'll show off to everyone they know.
 
-      // 2. Design system (HIT-67)
-      const designBlock = buildDesignSystemBlock(category);
+You have complete creative freedom. Choose your own typefaces (Google Fonts). Choose your own color palette. Decide which sections this client needs and in what order. Make every decision a designer would make — not a template would make.
 
-      // 3. Reference example (HIT-66)
-      const refExample = REFERENCE_EXAMPLES[category] || REFERENCE_EXAMPLES.professional_trades;
-      const referenceBlock = `REFERENCE EXAMPLE (your output must meet or exceed this standard):
-${refExample}
+Read every word of this brief. The client's voice is the most important thing in it.
 
-Study this example. Match its typography weight, its color intentionality, its copy specificity, its hover behavior, its visual depth. Then build the full site at this standard using the business content below. This is your quality floor, not your ceiling.`;
+${creativeBrief}
 
-      // 4. Muse overrides (HIT-69)
-      const museBlock = buildMuseOverrideBlock(museAnswers, category);
+COPY RULES:
+- Write in second person ("you get", "your project") — never third person
+- Headlines are outcome-first: the result the client gets, not what you do
+- Service descriptions: 2 sentences. What they get + what makes it different
+- CTAs: active verb + specific outcome ("Start your project →" not "Submit")
+- Confident but not arrogant. The copy should sound like someone who is very good at what they do.
 
-      // 5. Section specs (HIT-68)
-      const sectionBlock = buildSectionSpecBlock(category);
+THE ONLY HARD CONSTRAINTS:
+- Use the client's actual content. Never invent placeholder businesses, names, or stats.
+- If you don't have real numbers, use specific credibility statements — never "100%" or fabricated round numbers.
+- Never fabricate portfolio projects. Use session data or omit the section entirely.
+- No emoji icons anywhere.
+- Include scroll-reveal animations (IntersectionObserver) and meaningful hover states on all interactive elements.
+- Complete, self-contained HTML — all CSS in <style>, all JS in <script>.
+- Import your chosen Google Font via <link> in <head>.
+- Mobile-responsive with viewport meta tag and @media queries.
+- Working contact form with action="#".
+- Include ALL available contact methods from the brief (email, phone, etc.) — not just a form.
 
-      // 6. Copy direction (HIT-68)
-      // (COPY_DIRECTION is a module-level constant)
+Everything else — typeface, palette, layout, section count, section order, spacing, visual details, animations, unexpected design moments — is your call. Make it extraordinary. Make the client feel like someone finally understood them.
 
-      // 7. Content rules
-      const contentRules = `CONTENT RULES:
-- Use ONLY the business information provided below
-- Do NOT invent placeholder businesses, names, services, or content
-- Every section must be populated with the REAL business data
-- If a field is not provided, omit that section — do not use generic placeholders`;
-
-      // 8. Design intent from Muse/Carl synthesis
-      const designIntentBlock = ctx.design_intent ? `=== DESIGN INTENT (from client interview — this is your creative brief, treat it as the client speaking directly) ===
-${ctx.design_intent}
-=== END DESIGN INTENT ===
-This is not supplementary context. This is the brief. Every visual decision — palette, weight, spacing, personality — flows from what the client described above.` : '';
-
-      // 9. Animation requirements
-      const animationBlock = `SCROLL ANIMATIONS (REQUIRED):
-Include this IntersectionObserver — every section animates in:
-<script>
-const observer = new IntersectionObserver((entries) => {
-  entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('visible'); });
-}, { threshold: 0.15 });
-document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
-</script>
-Add class="reveal" to every section. CSS:
-.reveal { opacity: 0; transform: translateY(32px); transition: opacity 0.7s ease, transform 0.7s ease; }
-.reveal.visible { opacity: 1; transform: translateY(0); }
-
-MICRO-INTERACTIONS (REQUIRED):
-- Buttons: transform translateY(-3px) + box-shadow lift on hover, 0.2s ease
-- Cards: translateY(-4px to -6px) + shadow deepen on hover, 0.25s ease
-- Links: underline slide-in animation on hover
-- At least one unexpected detail: a gradient text effect, a subtle border animation, a staggered card reveal — something that makes a viewer pause`;
-
-      // 10. Technical rules
-      const technicalBlock = `TECHNICAL RULES:
-- Complete, self-contained HTML with ALL CSS in a <style> tag and JS in a <script> tag
-- Import the design system font via <link> tag in <head>: ${(DESIGN_SYSTEMS[category] || DESIGN_SYSTEMS.professional_services).typography.import}
-- Mobile-responsive with viewport meta tag and @media queries
-- Working contact form with action="#" and visible fields
-- Semantic HTML5 — proper heading hierarchy, landmark elements, aria labels
-- Keep total HTML under 18KB`;
-
-      // 11. Self-review
-      const selfReview = `SELF-REVIEW BEFORE OUTPUT — check every item:
-[ ] Hero headline is specific to THIS business — could not apply to any other
-[ ] Color palette uses the exact design system tokens for ${category}
-[ ] Typography uses the specified font family and weight/size/spacing values
-[ ] Stats/numbers are real from session data — or replaced with specific credibility statements
-[ ] Service descriptions sound like they were written by someone who understands this business
-[ ] Every section follows the section spec — purpose, layout, copy strategy
-[ ] Contact section includes ALL available contact methods, not just a form
-[ ] At least one design detail makes this site feel hand-crafted, not generated
-[ ] The site would make the client proud to show their best customer
-[ ] IntersectionObserver scroll reveals are on all sections
-[ ] Hover states on every interactive element — buttons, cards, links
-[ ] The output meets or exceeds the reference example quality`;
-
-      // Assemble the full CDO prompt
-      return `You are Carl, the CDO. Generate a complete, self-contained HTML website for this SPECIFIC business.
-
-${qualityBlock}
-
-${designBlock}
-
-${referenceBlock}
-
-${museBlock}
-
-${sectionBlock}
-
-${COPY_DIRECTION}
-
-${contentRules}
-
-${content}
-${designIntentBlock}
-
-${animationBlock}
-
-${technicalBlock}
-
-${selfReview}
-
-Output ONLY the complete HTML. No markdown fences. No explanation. No preamble. Just the HTML.`;
+Output ONLY the complete HTML. No markdown. No explanation.`;
     }},
   { role: 'CQO', name: 'Chief Quality Officer', tone: 'exacting, quality-focused',
     task: (tier, ctx, prev) => {
@@ -992,6 +975,7 @@ export default async (req) => {
       lead_email: session.lead_email || '',
       design_intent: session.design_intent || '',
       muse_answers: session.muse_answers || {},
+      mockup_results: session.mockup_results || {},
     };
 
     const outputs = {};
