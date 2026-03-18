@@ -1015,13 +1015,25 @@ export default async (req) => {
       });
 
       try {
-        const response = await anthropic.messages.create({
+        const apiParams = {
           model: 'claude-sonnet-4-20250514',
           max_tokens: agent.role === 'CDO' ? 16000 : 4096,
           system: systemPrompt,
           messages: [{ role: 'user', content: prompt }],
-        });
-        outputs[agent.role] = response.content[0]?.text || '';
+        };
+
+        // CDO gets extended thinking — reason about design before generating
+        if (agent.role === 'CDO') {
+          apiParams.thinking = { type: 'enabled', budget_tokens: 8000 };
+        }
+
+        const response = await anthropic.messages.create(apiParams);
+
+        // Extract text content (skip thinking blocks)
+        outputs[agent.role] = response.content
+          .filter(b => b.type === 'text')
+          .map(b => b.text)
+          .join('') || '';
       } catch (agentErr) {
         outputs[agent.role] = `[${agent.role} error: ${agentErr.message}]`;
       }
