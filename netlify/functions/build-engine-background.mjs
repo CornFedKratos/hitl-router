@@ -366,83 +366,58 @@ export default async (req) => {
       const prompt = agent.task(tier, ctx, prevOutput);
 
       try {
-        // ── CDO: Two-step Opus process ──
+        // ── CDO: Single-call Opus — rich brief + quality reference ──
         if (agent.role === 'CDO' && tier === 'quick_build') {
-          const step1System = 'You are an elite creative director and front-end architect. You design websites that win awards. You think in textures, depth, motion, and emotional rhythm — not templates.';
-          const step1User = `Here is everything a real client told us about what they want for their website:\n\n${prompt}\n\nYou are about to build this client a website that will make them emotional when they see it. Before writing any code, commit to every design decision. Be bold — this is a $10,000 agency build, not a template.\n\n1. TYPEFACE: Name 2-3 exact Google Fonts and their roles (display, body, mono/accent). Not Inter. Pick fonts with personality that match this specific client's emotional brief.\n\n2. PALETTE: Exact hex values. Primary, accent, background, text, muted. Dark mode or light mode — commit. If dark: what makes it feel luxurious, not generic? If light: what makes it feel warm, not sterile?\n\n3. TEXTURE & DEPTH: What gives this site physical presence? Grain overlay? Subtle background pattern? Radial glows? Layered shadows? Commit to at least 2 texture/depth techniques.\n\n4. HERO: Full-viewport hero. What's the headline? What's the background treatment — gradient, pattern, animation? What makes someone stop scrolling within 2 seconds?\n\n5. SIGNATURE INTERACTION: One unexpected craft detail that makes this site feel hand-built. Custom cursor? Magnetic buttons? Text reveal animation? Parallax element? Staggered entrance timing? Name it.\n\n6. SECTIONS: What sections does this specific client need, in what order, and what's the visual treatment for each? Not hero/services/contact — think about what actually serves THIS client. At least 6 sections.\n\n7. CRAFT DETAILS: Hover states on every element. Scroll-triggered reveals with staggered timing. At least one CSS technique that most sites don't use (clamp typography, backdrop-filter, mix-blend-mode, CSS grid with named areas, animated gradients, etc.)\n\n8. PERSONALITY: One sentence. What makes someone look at this site and say "I could never have built this myself"?\n\nThis output should be 800+ lines of considered HTML/CSS/JS. Not a clean minimalist page — an experience. Commit to every decision now.`;
-
-          // Log Step 1 prompt
-          await supabase.from('kb_entries').insert({
-            session_id, phase: 1, entry_type: 'session', visibility: 'internal',
-            author: 'CDO_STEP1_PROMPT',
-            summary: 'CDO Step 1 — Design Direction Prompt (Opus)',
-            details: `SYSTEM: ${step1System}\n\nUSER:\n${step1User}`.substring(0, 50000),
-          });
-
-          // Step 1: Design direction commit (Opus)
-          await supabase.from('sessions').update({ build_phase: 'cdo_design' }).eq('id', session_id);
-
-          const designStream = anthropic.messages.stream({
-            model: 'claude-opus-4-20250514',
-            max_tokens: 4096,
-            system: step1System,
-            messages: [{ role: 'user', content: step1User }],
-          });
-          const designResponse = await designStream.finalMessage();
-
-          const designDirection = designResponse.content[0]?.text || '';
-
-          // Log the design direction output
-          await supabase.from('kb_entries').insert({
-            session_id, phase: 1, entry_type: 'session', visibility: 'internal',
-            author: 'CDO_DESIGN',
-            summary: 'CDO Design Direction (Step 1 — Opus Output)',
-            details: designDirection.substring(0, 10000),
-          });
-
-          const step2System = 'You are an elite front-end developer who writes beautiful, craft-level HTML/CSS/JS. Your output makes other developers study the source code.';
-          const step2Turn1 = `Here is everything a real client told us about what they want for their website:\n\n${prompt}\n\nCommit to a bold, specific design direction for this client.`;
-          const step2Turn3 = `Now build it. Execute every decision you just committed to — the exact fonts, colors, textures, interactions, and craft details you specified.
-
-This must be an 800+ line, craft-level build. Not a clean minimalist page — an experience that makes the client emotional. Execute every texture, every interaction, every typographic detail you committed to above.
-
-Technical requirements:
-- Complete, self-contained HTML file — all CSS in <style>, all JS in <script>
-- Import your chosen Google Fonts via <link> in <head>
-- Mobile responsive with @media queries
-- Every hover state, scroll animation, and interaction you committed to must be implemented
-- Working contact form (action="#") with every contact method from the brief displayed
-- Copy in second person
-- Never invent stats, testimonials, portfolio projects, or content the client didn't provide — if you don't have real testimonials, don't include a testimonials section
-- No emoji icons
-
-Output ONLY the raw HTML. No markdown fences. No explanation.`;
-
-          // Log Step 2 prompt
-          await supabase.from('kb_entries').insert({
-            session_id, phase: 1, entry_type: 'session', visibility: 'internal',
-            author: 'CDO_STEP2_PROMPT',
-            summary: 'CDO Step 2 — Build Prompt (Opus)',
-            details: `SYSTEM: ${step2System}\n\nUSER TURN 1:\n${step2Turn1.substring(0, 5000)}\n\nASSISTANT (design direction):\n${designDirection.substring(0, 5000)}\n\nUSER TURN 3:\n${step2Turn3}`.substring(0, 50000),
-          });
-
-          // Step 2: Build HTML from that direction (Opus)
           await supabase.from('sessions').update({ build_phase: 'cdo_build' }).eq('id', session_id);
 
-          const buildStream = anthropic.messages.stream({
-            model: 'claude-opus-4-20250514',
-            max_tokens: 32000,
-            system: step2System,
-            messages: [
-              { role: 'user', content: step2Turn1 },
-              { role: 'assistant', content: designDirection },
-              { role: 'user', content: step2Turn3 },
-            ],
+          const cdoSystem = `You build websites that make clients emotional. You are an elite designer and front-end developer. Your output is a $25,000 agency-quality, one-of-a-kind website — not a template. You write 1500+ lines of considered, craft-level HTML/CSS/JS.`;
+
+          const cdoPrompt = `A paying client invested in a custom website. Here is their complete brief — every answer they gave us, their design preferences, and our creative director's synthesis. Read it deeply. Their voice matters more than any instruction.
+
+${prompt}
+
+Now build their website. One complete HTML file. Make them feel like someone finally understood them.
+
+The quality bar is a $25,000 agency build. Here is what that means in practice:
+
+TYPOGRAPHY: Choose 2-3 Google Fonts with personality that match this specific client. Not Inter. Not system fonts. Typography carries the design — weight contrast, letter-spacing, and line-height should all feel intentional. Use clamp() for fluid sizing.
+
+TEXTURE & DEPTH: The site should feel physical, not flat. Choose the techniques that serve THIS client's brief — some possibilities: animated grain/noise overlay, subtle background patterns with CSS mask, radial gradient glows, layered shadows, backdrop-filter, mix-blend-mode. Pick what fits. Don't use all of them — use the ones that create the right feeling.
+
+COLOR: Derive your palette from the client's emotional brief — not from a generic category. Use CSS custom properties. Consider whether a dark-background section somewhere would create visual rhythm. Every color should feel derived from what the client told you.
+
+SECTIONS: Build as many sections as this client needs — at least 8, each with its own visual treatment. Think about what actually serves them: a hero that stops the scroll, trust signals, empathy that speaks to their specific pain, their process, their services (with inline SVG icons, not emoji or text abbreviations), a moment of personality or philosophy, contact with every method displayed, and a footer. Add editorial elements (marquee, pull quotes, stat strips) where they serve the narrative.
+
+INTERACTIONS: Make the site feel alive and considered. Scroll-triggered reveals with staggered timing. Hover states on every interactive element. Beyond that, choose signature interactions that match the client's personality — custom cursor, magnetic buttons, text reveal animations, parallax, animated underlines, gradient text — pick what fits, don't use everything.
+
+COPY: Write in second person. Every headline should speak to THIS client's specific situation — their pain, their audience, their personality. The copy should feel written by someone who deeply understood the brief. Reference their actual words where possible.
+
+CONTENT INTEGRITY: Never invent statistics, testimonials, portfolio projects, or content the client didn't provide. If you don't have real data, build something better instead. Stats must be real or reframed as credibility statements. Use inline SVG for all icons.
+
+TECHNICAL: Complete self-contained HTML — all CSS in <style>, all JS in <script>. Import Google Fonts via <link>. Mobile responsive with @media queries. Working contact form (action="#"). Semantic HTML5. No emoji icons.
+
+This should be 1500+ lines. Not because length matters — because craft at this level requires depth. Every section should have its own visual personality. Every interaction should feel considered. Every build should feel like a one-of-a-kind creation for this specific client.
+
+Output ONLY the raw HTML. No markdown fences. No explanation. No preamble.`;
+
+          // Log the prompt
+          await supabase.from('kb_entries').insert({
+            session_id, phase: 1, entry_type: 'session', visibility: 'internal',
+            author: 'CDO_PROMPT',
+            summary: 'CDO Prompt — Single-Call Opus',
+            details: `SYSTEM: ${cdoSystem}\n\nUSER:\n${cdoPrompt}`.substring(0, 50000),
           });
 
-          const buildResponse = await buildStream.finalMessage();
+          const cdoStream = anthropic.messages.stream({
+            model: 'claude-opus-4-20250514',
+            max_tokens: 32000,
+            system: cdoSystem,
+            messages: [{ role: 'user', content: cdoPrompt }],
+          });
 
-          let cdoOutput = buildResponse.content
+          const cdoResponse = await cdoStream.finalMessage();
+
+          let cdoOutput = cdoResponse.content
             .filter(b => b.type === 'text')
             .map(b => b.text)
             .join('') || '';
