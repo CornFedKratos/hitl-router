@@ -51,22 +51,19 @@ function extractDirectionDesc(html) {
 
 // ── Tier 2: Launchpad ──
 
-const TIER2_PROMPT = `You are the Chief Product Officer in the HITL-AI-DLC methodology.
-Generate 3 concept direction cards for a Launchpad-tier project. Each offers a distinct strategic approach.
+const TIER2_PROMPT = `You are a strategic product consultant. Read this client brief deeply and generate 3 genuinely distinct concept directions for their project. Each should represent a meaningfully different approach — derived from what the client told you, not from generic categories. Use their actual business context, audience, and goals to shape each direction.
 
-DIRECTION APPROACHES: "Automate First" / "People-Centered" / "Data-Led"
-
-For each: name (3-5 words), framing (2-3 sentences specific to project), features (4-5 items), approach (1 sentence).
+For each: name (3-5 words), framing (2-3 sentences specific to THIS project), features (4-5 items derived from their brief), approach (1 sentence).
 
 OUTPUT: Return ONLY this JSON array:
 [{"name":"...","framing":"...","features":["..."],"approach":"..."},...]`;
 
 async function generateTier2(session) {
-  const contentBlock = buildContentBlock(session);
+  const clientBrief = buildClientBrief(session);
   try {
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514', max_tokens: 4096, system: TIER2_PROMPT,
-      messages: [{ role: 'user', content: contentBlock }],
+      messages: [{ role: 'user', content: clientBrief }],
     });
     const text = response.content[0]?.text || '';
     const jsonMatch = text.match(/\[[\s\S]*\]/);
@@ -79,21 +76,19 @@ async function generateTier2(session) {
 
 // ── Tier 3: Full Engagement ──
 
-const TIER3_PROMPT = `You are the Chief Product Officer. Generate 3 vision-level strategic direction cards for a Full Engagement project.
+const TIER3_PROMPT = `You are a strategic technology consultant. Read this client brief deeply and generate 3 vision-level strategic directions for their project. Each should represent a fundamentally different partnership approach — derived from the client's actual situation, goals, and constraints. Not generic approaches — approaches that serve THIS client.
 
-APPROACHES: "Build Fast & Iterate" / "Platform First" / "Human-Led with AI Assist"
-
-For each: name (3-5 words), vision (2-3 sentences), pillars (3 items), roadmap (mvp/scale/evolve — 1 sentence each).
+For each: name (3-5 words), vision (2-3 sentences specific to their project), pillars (3 items), roadmap (mvp/scale/evolve — 1 sentence each).
 
 OUTPUT: Return ONLY this JSON array:
 [{"name":"...","vision":"...","pillars":["..."],"roadmap":{"mvp":"...","scale":"...","evolve":"..."}},...]`;
 
 async function generateTier3(session) {
-  const contentBlock = buildContentBlock(session);
+  const clientBrief = buildClientBrief(session);
   try {
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514', max_tokens: 4096, system: TIER3_PROMPT,
-      messages: [{ role: 'user', content: contentBlock }],
+      messages: [{ role: 'user', content: clientBrief }],
     });
     const text = response.content[0]?.text || '';
     const jsonMatch = text.match(/\[[\s\S]*\]/);
@@ -104,38 +99,40 @@ async function generateTier3(session) {
   }
 }
 
-// ── Q&A brief for mockup generator — same philosophy as build engine ──
-
-const MOCKUP_INTAKE_QUESTIONS = {
-  business_name: "What's the name of your business and what do you do?",
-  audience: "Who are your best customers?",
-  goal: "What's the #1 thing you want people to do when they find you online?",
-  feeling: "How should your brand feel?",
-  style: "Any styles, colors, or looks you love — or want to avoid?",
-  problem: "What problem are you trying to solve?",
-  solution: "What's the solution you're imagining?",
-  success: "What does success look like?",
-  timeline: "What's your timeline?",
-};
+// ── HIT-79: Narrative brief for mockup generator ──
 
 function buildClientBrief(session) {
   const pa = session.partial_answers || {};
-  const lines = ['A real client told us about their project. Here are their exact answers:\n'];
+  const muse = session.muse_answers || {};
+  const businessName = (pa.business_name || '').split(/\s*[-–—]\s*/)[0].trim() || 'the client';
+  const businessDesc = (pa.business_name || '').includes('-') ? (pa.business_name || '').split(/\s*[-–—]\s*/).slice(1).join(' — ').trim() : '';
+  const lines = [];
 
-  for (const [key, question] of Object.entries(MOCKUP_INTAKE_QUESTIONS)) {
-    const answer = pa[key] || session[key];
-    if (answer) lines.push(`Q: ${question}\nA: ${answer}\n`);
+  lines.push(`Project brief for ${businessName}.${businessDesc ? ` ${businessDesc}.` : ''}\n`);
+
+  if (pa.audience) lines.push(`Target audience: ${pa.audience}`);
+  if (pa.goal) lines.push(`Primary goal: ${pa.goal}`);
+  if (pa.feeling) lines.push(`Brand feeling: ${pa.feeling}`);
+  if (pa.style) lines.push(`Style preferences: ${pa.style}`);
+  if (session.problem || pa.problem) lines.push(`Problem: ${session.problem || pa.problem}`);
+  if (session.solution || pa.solution) lines.push(`Solution: ${session.solution || pa.solution}`);
+  if (pa.timeline) lines.push(`Timeline: ${pa.timeline}`);
+
+  // Include Muse data if available
+  if (muse.inspiration) lines.push(`\nSites they admire: ${muse.inspiration}`);
+  if (muse.emotion && Array.isArray(muse.emotion)) lines.push(`Want visitors to feel: ${muse.emotion.join(', ')}`);
+  if (muse.avoid) lines.push(`Don't want: ${muse.avoid}`);
+  if (muse.personality) lines.push(`Brand personality: "${muse.personality}"`);
+
+  // Include design_intent if available
+  if (session.design_intent) {
+    lines.push(`\nCreative direction:\n${session.design_intent}`);
   }
 
-  if (session.lead_name) lines.push(`Contact: ${session.lead_name}`);
+  if (session.lead_name) lines.push(`\nContact: ${session.lead_name}`);
   if (session.lead_email) lines.push(`Email: ${session.lead_email}`);
 
   return lines.join('\n');
-}
-
-// Keep old function for tier 2/3 which still use it
-function buildContentBlock(session) {
-  return buildClientBrief(session);
 }
 
 // ── Background function handler ──

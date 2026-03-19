@@ -30,36 +30,56 @@ function detectBusinessCategory(partialAnswers) {
   return 'professional_services';
 }
 
-// ── Build session content block for non-CDO agents (CPO, CTO, CIO, CSO) ──
-function buildSessionContent(ctx) {
+// ── HIT-79: Narrative brief for ALL agents — the client's voice, not extracted fields ──
+function buildNarrativeBrief(ctx) {
   const pa = ctx.partial_answers || {};
-  const lines = ['=== BUSINESS CONTENT (use this, never invent placeholder content) ==='];
+  const muse = ctx.muse_answers || {};
+  const businessName = (pa.business_name || '').split(/\s*[-–—]\s*/)[0].trim() || 'the client';
+  const businessDesc = (pa.business_name || '').includes('-') ? (pa.business_name || '').split(/\s*[-–—]\s*/).slice(1).join(' — ').trim() : '';
+  const lines = [];
 
-  // Design path fields
-  if (pa.business_name) lines.push(`Business Name: ${pa.business_name}`);
-  if (pa.audience) lines.push(`Audience: ${pa.audience}`);
-  if (pa.goal) lines.push(`Primary Goal: ${pa.goal}`);
-  if (pa.feeling) lines.push(`Brand Feeling: ${pa.feeling}`);
-  if (pa.style) lines.push(`Style Notes: ${pa.style}`);
+  lines.push(`Project brief for ${businessName}.${businessDesc ? ` ${businessDesc}.` : ''}\n`);
 
-  // Tech path fields
+  // All intake answers — narrative format
+  if (pa.audience) lines.push(`Target audience: ${pa.audience}`);
+  if (pa.goal) lines.push(`Primary goal: ${pa.goal}`);
+  if (pa.feeling) lines.push(`Brand feeling: ${pa.feeling}`);
+  if (pa.style) lines.push(`Style preferences: ${pa.style}`);
   if (ctx.problem) lines.push(`Problem: ${ctx.problem}`);
   if (ctx.solution) lines.push(`Solution: ${ctx.solution}`);
-  if (ctx.audience && !pa.audience) lines.push(`Audience: ${ctx.audience}`);
-
-  // Shared fields
+  if (pa.success) lines.push(`Success looks like: ${pa.success}`);
+  if (pa.client) lines.push(`Project type: ${pa.client}`);
   if (pa.timeline) lines.push(`Timeline: ${pa.timeline}`);
-  if (pa.stakeholders) lines.push(`Stakeholders: ${pa.stakeholders}`);
-  if (pa.existing_systems) lines.push(`Existing Systems: ${pa.existing_systems}`);
-  if (pa.client) lines.push(`Project Type: ${pa.client}`);
-  if (pa.constraints) lines.push(`Constraints: ${pa.constraints}`);
+  if (pa.stakeholders) lines.push(`Decision makers: ${pa.stakeholders}`);
+  if (pa.existing_systems) lines.push(`Existing systems: ${pa.existing_systems}`);
+  if (pa.constraints) lines.push(`Technical constraints: ${pa.constraints}`);
 
-  // Contact info
+  // Muse design preferences if available
+  const hasMuse = muse.inspiration || muse.emotion || muse.avoid || muse.personality;
+  if (hasMuse) {
+    lines.push('\nDesign preferences:');
+    if (muse.inspiration) lines.push(`Sites they admire: ${muse.inspiration}`);
+    if (muse.emotion && Array.isArray(muse.emotion)) lines.push(`Want visitors to feel: ${muse.emotion.join(', ')}`);
+    if (muse.avoid) lines.push(`Don't want: ${muse.avoid}`);
+    if (muse.personality) lines.push(`Brand personality: "${muse.personality}"`);
+  }
+
+  // Carl's synthesis if available
+  if (ctx.design_intent) {
+    lines.push(`\nCreative direction:\n${ctx.design_intent}`);
+  }
+
+  // Selected direction
+  const directions = (ctx.mockup_results || {}).directions || [];
+  const selectedDir = directions.find(d => d.id === ctx.direction);
+  if (selectedDir) {
+    lines.push(`\nSelected direction: "${selectedDir.name}"`);
+    if (selectedDir.framing || selectedDir.vision) lines.push(selectedDir.framing || selectedDir.vision);
+  }
+
+  // Contact
+  if (ctx.lead_name) lines.push(`\nContact: ${ctx.lead_name}`);
   if (ctx.lead_email) lines.push(`Email: ${ctx.lead_email}`);
-  if (ctx.lead_name) lines.push(`Contact Name: ${ctx.lead_name}`);
-
-  lines.push(`Selected Direction: ${ctx.direction}`);
-  lines.push('=== END BUSINESS CONTENT ===');
 
   return lines.join('\n');
 }
@@ -171,38 +191,38 @@ function buildCreativeBrief(ctx) {
 const AGENTS = [
   { role: 'CPO', name: 'Chief Product Officer', tone: 'warm, strategic',
     task: (tier, ctx) => {
-      const content = buildSessionContent(ctx);
-      return `You are the CPO opening the build. Summarize what this lead told us and confirm the build plan.
+      const brief = buildNarrativeBrief(ctx);
+      return `You are the CPO opening the build. Here is everything the client told us:
 
-${content}
+${brief}
 
 Tier: ${tier}
 
-Write a brief (3-4 sentences) strategic summary confirming what we're building, for whom, and why it matters. Reference the actual business name and audience. End with: "I'm handing this to our CTO to scope the technical approach."`;
+Write a brief (3-4 sentences) strategic summary confirming what we're building, for whom, and why it matters. Use their actual business name, reference their audience and their specific pain points. Never invent details they didn't provide. End with: "I'm handing this to our CTO to scope the technical approach."`;
     }},
   { role: 'CTO', name: 'Chief Technology Officer', tone: 'precise, technical',
     task: (tier, ctx) => {
-      const content = buildSessionContent(ctx);
+      const brief = buildNarrativeBrief(ctx);
       return tier === 'quick_build'
-        ? `You are the CTO scoping a Quick Build website.
+        ? `You are the CTO scoping a Quick Build website. Here is the full client brief:
 
-${content}
+${brief}
 
 Generate:
 1. Technical approach (2-3 sentences — reference the actual business and what they need)
-2. Page structure (hero, services, about, contact form — populated with their real content)
-3. Key features to implement (based on their stated goal and audience)
+2. Page structure (based on what THIS client needs, not a generic template)
+3. Key features to implement (derived from their stated goal and audience)
 4. Any flags or risks
 
 End with handoff to CDO: "Handing to our CDO to bring this to life."`
-        : `You are the CTO scoping a Launchpad project.
+        : `You are the CTO scoping a Launchpad project. Here is the full client brief:
 
-${content}
+${brief}
 
 Generate:
-1. Technical approach (3-4 sentences)
-2. Feature/epic list (5-8 items specific to this project)
-3. Recommended tech stack
+1. Technical approach (3-4 sentences referencing their specific situation)
+2. Feature/epic list (5-8 items specific to THIS project, not generic)
+3. Recommended tech stack (justified by their constraints and goals)
 4. Complexity assessment and risks
 
 End with handoff to CDO.`;
@@ -210,64 +230,71 @@ End with handoff to CDO.`;
   { role: 'CDO', name: 'Chief Design Officer', tone: 'creative, visual',
     task: (tier, ctx) => {
       if (tier !== 'quick_build') {
-        const content = buildSessionContent(ctx);
-        return `You are the CDO creating a design direction for this specific project.
+        const brief = buildNarrativeBrief(ctx);
+        return `Here is everything a client told us about their project:
 
-${content}
+${brief}
+
+Create a design direction for this specific project. Use everything they told you — their personality, their competitors, their audience's pain, their inspiration references. Nothing they said should go unused.
 
 Generate:
-1. UI/UX direction narrative — visual style, interaction philosophy, specific to this project
-2. Key screen descriptions (3-4 screens with layout and content from the data above)
-3. Design system basics (colors, typography, component patterns)
+1. UI/UX direction narrative — visual style, interaction philosophy, specific to THIS client
+2. Key screen descriptions (3-4 screens with content derived from their brief)
+3. Design system (colors, typography, component patterns — derived from their emotional brief, not generic)
 4. Accessibility considerations
 
 Hand off to CQO.`;
       }
 
-      // Return ONLY the brief — the two-step Opus process adds its own instructions
+      // Return ONLY the brief — the single-call Opus process adds its own instructions
       return buildCreativeBrief(ctx);
     }},
   { role: 'CQO', name: 'Chief Quality Officer', tone: 'exacting, quality-focused',
     task: (tier, ctx, prev) => {
       const pa = ctx.partial_answers || {};
+      const businessName = (pa.business_name || '').split(/\s*[-–—]\s*/)[0].trim();
       return `You are the CQO reviewing the CDO's output.
 
 VALIDATION CHECKLIST — verify the output contains:
-${pa.business_name ? `- Business name "${pa.business_name}" appears in the HTML` : ''}
+${businessName ? `- Business name "${businessName}" appears in the output` : ''}
 ${pa.audience ? `- Audience "${pa.audience}" is addressed` : ''}
 ${pa.goal ? `- Primary goal "${pa.goal}" is supported by the design` : ''}
-- Contact form is present and functional
-- No placeholder/generic content (e.g., "John Doe", "Lorem ipsum", "Acme Corp")
+- No placeholder/generic content (e.g., "John Doe", "Lorem ipsum", "Acme Corp", "100% satisfaction")
+- No fabricated testimonials or portfolio projects
 - All sections populated with real business data
+- Contact form is present and functional
+- Every contact method from the brief is displayed
 
 CDO output to review:
-${(prev || '').substring(0, 8000)}
+${(prev || '').substring(0, 12000)}
 
 If the output uses the real business data throughout: "Approved — quality gate passed. Handing to CIO."
-If generic/placeholder content is found: flag the specific sections that need real data. Hand off to CIO.`;
+If generic/placeholder/fabricated content is found: flag the specific sections. Hand off to CIO.`;
     }},
   { role: 'CIO', name: 'Chief Infrastructure Officer', tone: 'organized, systems-focused',
     task: (tier, ctx) => {
-      const content = buildSessionContent(ctx);
+      const brief = buildNarrativeBrief(ctx);
       return tier === 'quick_build'
-        ? `You are the CIO packaging the deliverables for this project.
+        ? `You are the CIO packaging the deliverables. Here is the full client brief:
 
-${content}
+${brief}
 
-Generate a project summary document:
+Generate a project summary document that references their actual business, audience, and goals throughout. Never use generic language — this document will be delivered to the client.
+
 1. Project Overview — the actual business, what was built, and for whom
 2. What Was Delivered — list of deliverables with descriptions
 3. Deployment Notes — how to host this HTML file (Netlify, Vercel, any static host)
 4. Recommended Next Steps — custom domain, hosting, form handling, analytics, ongoing updates
 
-Format as clean markdown. Reference the actual business name throughout. Hand off to CSO.`
-        : `You are the CIO generating the spec package.
+Format as clean markdown. Hand off to CSO.`
+        : `You are the CIO generating the spec package. Here is the full client brief:
 
-${content}
+${brief}
 
-Generate:
-1. PRD — problem, goals, user stories, success metrics (all specific to this project)
-2. Feature Specifications — each feature with acceptance criteria in Gherkin format
+Generate a comprehensive spec package that reflects everything the client told us. Use their language. Reference their specific situation.
+
+1. PRD — problem, goals, user stories, success metrics (all specific to THIS project)
+2. Feature Specifications — each feature with acceptance criteria
 3. Glossary — key terms defined
 4. Risk Log — identified risks with mitigation strategies
 5. Prioritized Roadmap — MVP → v1 → v2
@@ -276,11 +303,11 @@ Format as clean markdown. Hand off to CSO.`;
     }},
   { role: 'CSO', name: 'Chief Security Officer', tone: 'measured, risk-aware',
     task: (tier, ctx) => {
-      const content = buildSessionContent(ctx);
+      const brief = buildNarrativeBrief(ctx);
       return tier === 'quick_build'
         ? `You are the CSO. Final security and compliance review.
 
-${content}
+${brief}
 
 Review the deliverables for:
 1. Contact form safety (action="#" is acceptable for a static prototype)
@@ -292,7 +319,7 @@ If clear: "Security review passed. No concerns. Build complete."
 If flags: note them with recommendations. Then: "Build complete — flagged items noted for review."`
         : `You are the CSO. Security review of the spec package.
 
-${content}
+${brief}
 
 Check for:
 1. Features involving authentication, payments, or PII
@@ -366,7 +393,7 @@ export default async (req) => {
       const prompt = agent.task(tier, ctx, prevOutput);
 
       try {
-        // ── CDO: Single-call Opus — rich brief + quality reference ──
+        // ── CDO: Opus for all tiers ──
         if (agent.role === 'CDO' && tier === 'quick_build') {
           await supabase.from('sessions').update({ build_phase: 'cdo_build' }).eq('id', session_id);
 
@@ -428,6 +455,30 @@ Output ONLY the raw HTML. No markdown fences. No explanation. No preamble.`;
           cdoOutput = cdoOutput.replace(/^```html?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
 
           outputs[agent.role] = cdoOutput;
+
+        } else if (agent.role === 'CDO' && tier !== 'quick_build') {
+          // CDO launchpad/full_engagement: Opus with streaming, narrative brief
+          await supabase.from('sessions').update({ build_phase: 'cdo_design' }).eq('id', session_id);
+
+          const cdoSpecSystem = `You are an elite creative director producing a design direction document. Use everything the client told you. Nothing they said should go unused.`;
+          const cdoSpecPrompt = prompt; // Already built by CDO task with narrative brief
+
+          await supabase.from('kb_entries').insert({
+            session_id, phase: 1, entry_type: 'session', visibility: 'internal',
+            author: 'CDO_PROMPT',
+            summary: 'CDO Prompt — Launchpad/Full Engagement (Opus)',
+            details: `SYSTEM: ${cdoSpecSystem}\n\nUSER:\n${cdoSpecPrompt}`.substring(0, 50000),
+          });
+
+          const cdoSpecStream = anthropic.messages.stream({
+            model: 'claude-opus-4-20250514',
+            max_tokens: 8000,
+            system: cdoSpecSystem,
+            messages: [{ role: 'user', content: cdoSpecPrompt }],
+          });
+
+          const cdoSpecResponse = await cdoSpecStream.finalMessage();
+          outputs[agent.role] = cdoSpecResponse.content[0]?.text || '';
 
         } else {
           // All other agents: standard Sonnet call
