@@ -110,12 +110,16 @@ function buildClientBrief(session) {
 
   lines.push(`Project brief for ${businessName}.${businessDesc ? ` ${businessDesc}.` : ''}\n`);
 
+  if (pa.services) lines.push(`Services/products: ${pa.services}`);
   if (pa.audience) lines.push(`Target audience: ${pa.audience}`);
   if (pa.goal) lines.push(`Primary goal: ${pa.goal}`);
+  if (pa.location) lines.push(`Location: ${pa.location}`);
   if (pa.feeling) lines.push(`Brand feeling: ${pa.feeling}`);
   if (pa.style) lines.push(`Style preferences: ${pa.style}`);
   if (session.problem || pa.problem) lines.push(`Problem: ${session.problem || pa.problem}`);
   if (session.solution || pa.solution) lines.push(`Solution: ${session.solution || pa.solution}`);
+  if (pa.success) lines.push(`Success looks like: ${pa.success}`);
+  if (pa.existing_url) lines.push(`Existing website: ${pa.existing_url}`);
   if (pa.timeline) lines.push(`Timeline: ${pa.timeline}`);
 
   // Include Muse data if available
@@ -123,6 +127,8 @@ function buildClientBrief(session) {
   if (muse.emotion && Array.isArray(muse.emotion)) lines.push(`Want visitors to feel: ${muse.emotion.join(', ')}`);
   if (muse.avoid) lines.push(`Don't want: ${muse.avoid}`);
   if (muse.personality) lines.push(`Brand personality: "${muse.personality}"`);
+  if (muse.differentiator) lines.push(`What makes them different: ${muse.differentiator}`);
+  if (muse.competitors) lines.push(`Competitors: ${muse.competitors}`);
 
   // Include design_intent if available
   if (session.design_intent) {

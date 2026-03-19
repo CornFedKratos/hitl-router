@@ -41,13 +41,16 @@ function buildNarrativeBrief(ctx) {
   lines.push(`Project brief for ${businessName}.${businessDesc ? ` ${businessDesc}.` : ''}\n`);
 
   // All intake answers — narrative format
+  if (pa.services) lines.push(`Services/products: ${pa.services}`);
   if (pa.audience) lines.push(`Target audience: ${pa.audience}`);
   if (pa.goal) lines.push(`Primary goal: ${pa.goal}`);
+  if (pa.location) lines.push(`Location: ${pa.location}`);
   if (pa.feeling) lines.push(`Brand feeling: ${pa.feeling}`);
   if (pa.style) lines.push(`Style preferences: ${pa.style}`);
   if (ctx.problem) lines.push(`Problem: ${ctx.problem}`);
   if (ctx.solution) lines.push(`Solution: ${ctx.solution}`);
   if (pa.success) lines.push(`Success looks like: ${pa.success}`);
+  if (pa.existing_url) lines.push(`Existing website: ${pa.existing_url}`);
   if (pa.client) lines.push(`Project type: ${pa.client}`);
   if (pa.timeline) lines.push(`Timeline: ${pa.timeline}`);
   if (pa.stakeholders) lines.push(`Decision makers: ${pa.stakeholders}`);
@@ -55,13 +58,28 @@ function buildNarrativeBrief(ctx) {
   if (pa.constraints) lines.push(`Technical constraints: ${pa.constraints}`);
 
   // Muse design preferences if available
-  const hasMuse = muse.inspiration || muse.emotion || muse.avoid || muse.personality;
+  const hasMuse = muse.inspiration || muse.emotion || muse.avoid || muse.personality ||
+    muse.differentiator || muse.competitors || Object.keys(muse).some(k => k.startsWith('this_or_that_'));
   if (hasMuse) {
     lines.push('\nDesign preferences:');
     if (muse.inspiration) lines.push(`Sites they admire: ${muse.inspiration}`);
+
+    // This or That — resolve picks to labels
+    for (const [key, val] of Object.entries(muse)) {
+      if (key.startsWith('this_or_that_')) {
+        const pairIdx = parseInt(key.split('_').pop(), 10);
+        const pair = THIS_OR_THAT_PAIRS[pairIdx];
+        if (pair && pair[val]) {
+          lines.push(`Prefers: "${pair[val].label}" (${pair[val].desc})`);
+        }
+      }
+    }
+
     if (muse.emotion && Array.isArray(muse.emotion)) lines.push(`Want visitors to feel: ${muse.emotion.join(', ')}`);
     if (muse.avoid) lines.push(`Don't want: ${muse.avoid}`);
     if (muse.personality) lines.push(`Brand personality: "${muse.personality}"`);
+    if (muse.differentiator) lines.push(`What makes them different: ${muse.differentiator}`);
+    if (muse.competitors) lines.push(`Competitors: ${muse.competitors}`);
   }
 
   // Carl's synthesis if available
@@ -80,6 +98,7 @@ function buildNarrativeBrief(ctx) {
   // Contact
   if (ctx.lead_name) lines.push(`\nContact: ${ctx.lead_name}`);
   if (ctx.lead_email) lines.push(`Email: ${ctx.lead_email}`);
+  if (pa.phone) lines.push(`Phone: ${pa.phone}`);
 
   return lines.join('\n');
 }
@@ -88,13 +107,16 @@ function buildNarrativeBrief(ctx) {
 
 const INTAKE_QUESTIONS = {
   business_name: "What's the name of your business and what do you do?",
+  services: "What are the main services or products you offer?",
   audience: "Who are your best customers?",
   goal: "What's the #1 thing you want people to do when they find you online?",
+  location: "Where are you based, and where do you serve customers?",
   feeling: "How should your brand feel? Give me three words.",
   style: "Any styles, colors, or looks you love — or definitely want to avoid?",
+  success: "What does success look like for this project?",
+  existing_url: "Do you have an existing website?",
   problem: "What problem are you trying to solve?",
   solution: "What's the solution you're imagining?",
-  success: "What does success look like for this project?",
   client: "Who is this project for?",
   timeline: "What's your timeline?",
   stakeholders: "Who else is involved?",
@@ -107,6 +129,8 @@ const MUSE_QUESTIONS = {
   emotion: "When someone lands on your site, what's the first thing you want them to feel?",
   avoid: "Is there anything you've seen that you definitely don't want?",
   personality: "If your business were a person, how would you describe them in one sentence?",
+  differentiator: "What makes you different from the other options your clients have?",
+  competitors: "Who are your main competitors?",
 };
 
 const THIS_OR_THAT_PAIRS = [
@@ -129,12 +153,16 @@ function buildCreativeBrief(ctx) {
   lines.push(`This is a paying client who chose to invest in a custom-built site. The output will be downloaded, deployed, and shown to their customers. It needs to be extraordinary.\n`);
 
   // Client's own words — organized by topic, not by form field
+  if (pa.services) lines.push(`Services/products they offer: ${pa.services}`);
   if (pa.audience) lines.push(`Their target audience: ${pa.audience}`);
   if (pa.goal) lines.push(`The #1 thing they want visitors to do: ${pa.goal}`);
+  if (pa.location) lines.push(`Based in: ${pa.location}`);
   if (pa.feeling) lines.push(`How the brand should feel: ${pa.feeling}`);
   if (pa.style) lines.push(`Style preferences: ${pa.style}`);
   if (ctx.problem) lines.push(`The problem they're solving: ${ctx.problem}`);
   if (ctx.solution) lines.push(`Their solution: ${ctx.solution}`);
+  if (pa.success) lines.push(`Success looks like: ${pa.success}`);
+  if (pa.existing_url) lines.push(`Their existing website: ${pa.existing_url}`);
   if (pa.timeline) lines.push(`Timeline: ${pa.timeline}`);
 
   // Muse design preferences — narrative, not Q&A
@@ -162,6 +190,8 @@ function buildCreativeBrief(ctx) {
     }
     if (muse.avoid) lines.push(`What they definitely don't want: ${muse.avoid}`);
     if (muse.personality) lines.push(`If their business were a person: "${muse.personality}"`);
+    if (muse.differentiator) lines.push(`What makes them different from competitors: ${muse.differentiator}`);
+    if (muse.competitors) lines.push(`Their main competitors: ${muse.competitors}`);
   }
 
   // Carl's synthesis — the creative direction
@@ -182,6 +212,7 @@ function buildCreativeBrief(ctx) {
   lines.push(`\nContact details to display on the site:`);
   if (ctx.lead_name) lines.push(`Name: ${ctx.lead_name}`);
   if (ctx.lead_email) lines.push(`Email: ${ctx.lead_email}`);
+  if (pa.phone) lines.push(`Phone: ${pa.phone}`);
 
   return lines.join('\n');
 }

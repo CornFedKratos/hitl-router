@@ -3558,10 +3558,14 @@ const DESIGN_POPUP_SCREENS = [
   { id: 'expectation', type: 'info', leadOnly: true },
   { id: 'capture', type: 'lead-capture', leadOnly: true },
   { id: 'business_name', type: 'question', question: 'What\u2019s the name of your business and what do you do?', hint: 'Don\u2019t overthink it. Just tell us what you do.', placeholder: 'Schminkey Home Inspections \u2014 we inspect homes before purchase...', required: true },
+  { id: 'services', type: 'question', question: 'What are the main services or products you offer?', hint: 'List them \u2014 even just a few words each is fine.', placeholder: 'Pre-purchase inspections, radon testing, mold assessments...', required: true },
   { id: 'audience', type: 'question', question: 'Who are your best customers?', hint: 'Describe the person you\u2019re trying to reach.', placeholder: 'Real estate agents and first-time home buyers in the Marion area...', required: true },
   { id: 'goal', type: 'question', question: 'What\u2019s the #1 thing you want people to do when they find you online?', hint: 'One action. What matters most?', placeholder: 'Call us, fill out a contact form, or book an inspection...', required: true },
+  { id: 'location', type: 'question', question: 'Where are you based, and where do you serve customers?', hint: 'City, region, or service area.', placeholder: 'Marion, Iowa \u2014 serving all of Linn County...', required: true },
   { id: 'feeling', type: 'question', question: 'How should your brand feel? Give me three words.', hint: 'Don\u2019t worry about design \u2014 just the feeling.', placeholder: 'Trustworthy, professional, approachable...', required: true },
   { id: 'style', type: 'question', question: 'Any styles, colors, or looks you love \u2014 or definitely want to avoid?', hint: 'References welcome \u2014 competitor sites, brands you admire, anything.', placeholder: 'Love clean and simple. Hate anything too corporate or cold...', required: false },
+  { id: 'success', type: 'question', question: 'What does success look like for this project?', hint: 'How will you know the site is working?', placeholder: 'People find us on Google and call us directly...', required: true },
+  { id: 'existing_url', type: 'question', question: 'Do you have an existing website?', hint: 'Leave blank if you don\u2019t have one.', placeholder: 'www.mybusiness.com', required: false },
   { id: 'client', type: 'chips', question: 'Who is this project for?', hint: 'This helps us understand the engagement.', required: true, options: [
     { value: 'Paying client', icon: '\uD83E\uDDD1\u200D\uD83D\uDCBC' },
     { value: 'Internal / company project', icon: '\uD83C\uDFE2' },
@@ -3665,6 +3669,7 @@ function renderPopupStep() {
       <div class="popup-hint">So we can save your progress and follow up if you need help.</div>
       <input class="popup-input" id="popup-lead-name" type="text" placeholder="Your name (optional)" value="${escapeHtml(popupLeadData.name)}">
       <input class="popup-input" id="popup-lead-email" type="email" placeholder="Your email" value="${escapeHtml(popupLeadData.email)}">
+      <input class="popup-input" id="popup-lead-phone" type="tel" placeholder="Phone number (optional)" value="${escapeHtml(popupLeadData.phone || '')}">
       <div class="popup-consent">
         <input type="checkbox" id="popup-consent-check" ${popupLeadData.consent ? 'checked' : ''} onchange="clearConsentError()">
         <label for="popup-consent-check">I agree to be contacted by S3 Technology regarding my project. We won't share your information or send you anything unrelated.</label>
@@ -3816,7 +3821,9 @@ function popupNext() {
       return;
     }
 
-    popupLeadData = { name, email, consent: email ? consent : false };
+    const phone = document.getElementById('popup-lead-phone')?.value.trim() || '';
+    popupLeadData = { name, email, phone, consent: email ? consent : false };
+    if (phone) popupAnswers.phone = phone;
 
     // HIT-17: write lead data to Supabase immediately
     if (email && consent) {
@@ -3870,7 +3877,10 @@ function saveCurrentStepData() {
   } else if (screen.type === 'lead-capture') {
     popupLeadData.name = document.getElementById('popup-lead-name')?.value.trim() || '';
     popupLeadData.email = document.getElementById('popup-lead-email')?.value.trim() || '';
+    popupLeadData.phone = document.getElementById('popup-lead-phone')?.value.trim() || '';
     popupLeadData.consent = document.getElementById('popup-consent-check')?.checked || false;
+    // Store phone in popupAnswers so it reaches the brief
+    if (popupLeadData.phone) popupAnswers.phone = popupLeadData.phone;
   } else if (screen.type === 'source-attribution') {
     const otherText = document.getElementById('popup-source-other')?.value.trim() || '';
     sourceAttribution.manual = selectedSourceValue === 'Other' ? (otherText || 'Other') : selectedSourceValue;
@@ -3928,15 +3938,19 @@ async function submitPopupFlow() {
 
   // Design path fields
   if (popupAnswers.business_name) lines.push(`Business name and what we do: ${popupAnswers.business_name}`);
+  if (popupAnswers.services) lines.push(`Services/products we offer: ${popupAnswers.services}`);
   if (popupAnswers.audience) lines.push(`Our best customers: ${popupAnswers.audience}`);
   if (popupAnswers.goal) lines.push(`#1 thing we want visitors to do: ${popupAnswers.goal}`);
+  if (popupAnswers.location) lines.push(`Where we're based: ${popupAnswers.location}`);
   if (popupAnswers.feeling) lines.push(`How the brand should feel: ${popupAnswers.feeling}`);
   if (popupAnswers.style) lines.push(`Style preferences: ${popupAnswers.style}`);
+  if (popupAnswers.success) lines.push(`Success looks like: ${popupAnswers.success}`);
+  if (popupAnswers.existing_url) lines.push(`Existing website: ${popupAnswers.existing_url}`);
 
   // Tech path fields
   if (popupAnswers.problem) lines.push(`Problem we're solving: ${popupAnswers.problem}`);
   if (popupAnswers.solution) lines.push(`Solution we're imagining: ${popupAnswers.solution}`);
-  if (popupAnswers.success) lines.push(`Success looks like: ${popupAnswers.success}`);
+  if (!popupAnswers.success && popupAnswers.success) lines.push(`Success looks like: ${popupAnswers.success}`);
 
   // Shared fields
   if (popupAnswers.client) lines.push(`Project type: ${popupAnswers.client}`);
@@ -4898,6 +4912,20 @@ const MUSE_CONFIG = {
       hint: '',
       placeholder: 'A friendly neighbor who happens to be really good at their job...',
     },
+    {
+      id: 'differentiator',
+      type: 'text',
+      question: 'What makes you different from the other options your clients have?',
+      hint: 'What do you do that nobody else does \u2014 or does as well?',
+      placeholder: 'We actually finish on time. Most agencies can\u2019t say that...',
+    },
+    {
+      id: 'competitors',
+      type: 'text',
+      question: 'Who are your main competitors?',
+      hint: 'Names or URLs are fine. Helps us position you against them.',
+      placeholder: 'ABC Company, competitor.com...',
+    },
   ],
 };
 
@@ -5076,6 +5104,8 @@ async function finishMuseChat(sid) {
   if (museAnswers.emotion?.length) synthesisLines.push(`Primary emotions: ${museAnswers.emotion.join(', ')}`);
   if (museAnswers.avoid) synthesisLines.push(`Avoid: ${museAnswers.avoid}`);
   if (museAnswers.personality) synthesisLines.push(`Brand personality: ${museAnswers.personality}`);
+  if (museAnswers.differentiator) synthesisLines.push(`What makes them different: ${museAnswers.differentiator}`);
+  if (museAnswers.competitors) synthesisLines.push(`Competitors: ${museAnswers.competitors}`);
 
   let designIntent = '';
 
