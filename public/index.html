@@ -1740,6 +1740,78 @@
     .role-badge.CIO { background: #451A03; color: #FCD34D; }
     .role-badge.CSO { background: #450A0A; color: #FCA5A5; }
 
+    /* HIT-84: Agent avatar icons */
+    .agent-avatar {
+      width: 32px; height: 32px; min-width: 32px;
+      border-radius: 50%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .agent-avatar svg { width: 16px; height: 16px; stroke: var(--muted); stroke-width: 1.5; fill: none; }
+    @media (max-width: 768px) {
+      .agent-avatar { width: 28px; height: 28px; min-width: 28px; }
+      .agent-avatar svg { width: 14px; height: 14px; }
+    }
+
+    /* HIT-83: Inline chat chips */
+    .chat-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+      max-width: 640px;
+      animation: fadeIn 0.3s ease;
+    }
+    .chat-chip {
+      padding: 10px 20px;
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      background: var(--surface);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+    }
+    .chat-chip:hover {
+      border-color: var(--blue);
+      background: var(--blue-glow);
+    }
+    .chat-chip.selected {
+      background: var(--blue);
+      color: #fff;
+      border-color: var(--blue);
+    }
+    /* This or That inline cards */
+    .chat-tot-pair {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+      max-width: 640px;
+    }
+    .chat-tot-option {
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .chat-tot-option:hover { border-color: var(--blue); background: var(--blue-glow); }
+    .chat-tot-option.selected { border-color: var(--blue); background: var(--blue); }
+    .chat-tot-option.selected .chat-tot-label { color: #fff; }
+    .chat-tot-option.selected .chat-tot-desc { color: rgba(255,255,255,0.7); }
+    .chat-tot-label { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+    .chat-tot-desc { font-size: 12px; color: var(--muted); }
+
     /* ── Typing Indicator ── */
     .typing {
       display: flex;
@@ -4429,6 +4501,7 @@ function addMessage(role, content, agentRole) {
   let inner = '';
   if (role === 'agent' && agentRole) {
     const cleanContent = stripPhaseComplete(content);
+    inner += `<div class="agent-avatar">${getAgentIcon(agentRole)}</div>`;
     inner += `<div><span class="role-badge ${agentRole}">${agentRole}</span>`;
     inner += `<div class="message-content">${renderMarkdown(cleanContent)}</div></div>`;
   } else {
@@ -4451,7 +4524,7 @@ function createStreamingMessage(agentRole) {
 
   const msg = document.createElement('div');
   msg.className = 'message agent';
-  msg.innerHTML = `<div>
+  msg.innerHTML = `<div class="agent-avatar">${getAgentIcon(agentRole)}</div><div>
     <span class="role-badge ${agentRole}">${agentRole}</span>
     <div class="message-content"><div class="typing"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div>
   </div>`;
@@ -4832,7 +4905,251 @@ let museStep = 0;
 let museAnswers = {};
 let museIdleTimer = null;
 
+// HIT-84: Agent avatar icons
+function getAgentIcon(role) {
+  const icons = {
+    CPO: '<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>',
+    CTO: '<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
+    CDO: '<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>',
+    CQO: '<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+    CIO: '<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
+    CSO: '<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+  };
+  return icons[role] || icons.CPO;
+}
+
+// HIT-83: Muse intake in chat with inline chips
+async function startMuseChat(sid) {
+  museStep = 0;
+  museAnswers = {};
+
+  // Carl intro message
+  addMessage('agent', `Before I build, I want to make sure this feels exactly right for you. I have a few quick questions — takes about 2 minutes.\n\nLet's start.`, 'CDO');
+
+  // Wait a beat then ask first question
+  await new Promise(r => setTimeout(r, 800));
+  askMuseQuestion(sid, 0);
+}
+
+function askMuseQuestion(sid, stepIdx) {
+  museStep = stepIdx;
+  if (stepIdx >= MUSE_CONFIG.screens.length) {
+    finishMuseChat(sid);
+    return;
+  }
+
+  const screen = MUSE_CONFIG.screens[stepIdx];
+  const questionText = screen.question + (screen.hint ? `\n\n*${screen.hint}*` : '');
+
+  // Add Carl's question as a message
+  addMessage('agent', questionText, 'CDO');
+
+  // Render the appropriate input below the message
+  const chatArea = document.getElementById('chat-area');
+
+  if (screen.type === 'text') {
+    // Text input — user types in the main input field, we listen for send
+    const inputEl = document.getElementById('input');
+    inputEl.placeholder = screen.placeholder || 'Type your answer...';
+    inputEl.focus();
+    // Store handler to intercept next send
+    window._museTextHandler = (text) => {
+      museAnswers[screen.id] = text;
+      window._museTextHandler = null;
+      inputEl.placeholder = 'Tell us about your project...';
+      setTimeout(() => askMuseQuestion(sid, stepIdx + 1), 600);
+    };
+
+  } else if (screen.type === 'cards') {
+    // This or That — render card pairs inline
+    const container = document.createElement('div');
+    container.className = 'message agent';
+    container.style.paddingLeft = '44px'; // align with message content after avatar
+    let pairsHtml = '';
+    screen.pairs.forEach((pair, pi) => {
+      pairsHtml += `
+        <div class="chat-tot-pair" data-pair="${pi}">
+          <div class="chat-tot-option" onclick="museInlinePick(${pi}, 'a', this)">
+            <div class="chat-tot-label">${pair.a.label}</div>
+            <div class="chat-tot-desc">${pair.a.desc}</div>
+          </div>
+          <div class="chat-tot-option" onclick="museInlinePick(${pi}, 'b', this)">
+            <div class="chat-tot-label">${pair.b.label}</div>
+            <div class="chat-tot-desc">${pair.b.desc}</div>
+          </div>
+        </div>`;
+    });
+    container.innerHTML = `<div>${pairsHtml}
+      <button class="chat-chip" id="muse-tot-next" onclick="museInlineToTNext('${sid}', ${stepIdx})" disabled style="margin-top:8px;">Next →</button>
+    </div>`;
+    chatArea.appendChild(container);
+    scrollToBottom();
+
+  } else if (screen.type === 'chips') {
+    // Emotion chips — render inline
+    const container = document.createElement('div');
+    container.className = 'message agent';
+    container.style.paddingLeft = '44px';
+    museAnswers[screen.id] = museAnswers[screen.id] || [];
+    const chipsHtml = screen.options.map(opt =>
+      `<div class="chat-chip" onclick="museInlineChipToggle('${opt}', this, '${sid}', ${stepIdx})">${opt}</div>`
+    ).join('');
+    container.innerHTML = `<div>
+      <div class="chat-chips" id="muse-inline-chips">${chipsHtml}</div>
+      <button class="chat-chip" id="muse-chip-next" onclick="museInlineChipNext('${sid}', ${stepIdx})" style="margin-top:12px;border-color:var(--blue);color:var(--blue);" disabled>Next →</button>
+    </div>`;
+    chatArea.appendChild(container);
+    scrollToBottom();
+  }
+}
+
+function museInlinePick(pairIdx, choice, el) {
+  const screen = MUSE_CONFIG.screens[museStep];
+  museAnswers[screen.id + '_' + pairIdx] = choice;
+
+  // Highlight selected, dim other
+  const pair = el.closest('.chat-tot-pair');
+  pair.querySelectorAll('.chat-tot-option').forEach(opt => opt.classList.remove('selected'));
+  el.classList.add('selected');
+
+  // Enable Next if all pairs selected
+  const totalPairs = screen.pairs.length;
+  let allSelected = true;
+  for (let i = 0; i < totalPairs; i++) {
+    if (!museAnswers[screen.id + '_' + i]) allSelected = false;
+  }
+  const nextBtn = document.getElementById('muse-tot-next');
+  if (nextBtn) nextBtn.disabled = !allSelected;
+}
+
+function museInlineToTNext(sid, stepIdx) {
+  // Show user's choices as a summary message
+  const screen = MUSE_CONFIG.screens[stepIdx];
+  const picks = [];
+  screen.pairs.forEach((pair, i) => {
+    const pick = museAnswers[screen.id + '_' + i];
+    if (pick === 'a') picks.push(pair.a.label);
+    else if (pick === 'b') picks.push(pair.b.label);
+  });
+  addMessage('user', picks.join(', '));
+  setTimeout(() => askMuseQuestion(sid, stepIdx + 1), 600);
+}
+
+function museInlineChipToggle(opt, el, sid, stepIdx) {
+  const screen = MUSE_CONFIG.screens[museStep];
+  let selected = museAnswers[screen.id] || [];
+  if (selected.includes(opt)) {
+    selected = selected.filter(s => s !== opt);
+    el.classList.remove('selected');
+  } else {
+    if (selected.length < 2) {
+      selected.push(opt);
+      el.classList.add('selected');
+    }
+  }
+  museAnswers[screen.id] = selected;
+  const nextBtn = document.getElementById('muse-chip-next');
+  if (nextBtn) nextBtn.disabled = selected.length === 0;
+}
+
+function museInlineChipNext(sid, stepIdx) {
+  const screen = MUSE_CONFIG.screens[stepIdx];
+  const selected = museAnswers[screen.id] || [];
+  addMessage('user', selected.join(', '));
+  setTimeout(() => askMuseQuestion(sid, stepIdx + 1), 600);
+}
+
+async function finishMuseChat(sid) {
+  addMessage('agent', 'Let me put all of that together into a design direction...', 'CDO');
+
+  // Synthesize design_intent — same logic as the old finishMuse
+  const synthesisLines = [];
+  if (museAnswers.inspiration) synthesisLines.push(`Inspiration references: ${museAnswers.inspiration}`);
+
+  const totPairs = MUSE_CONFIG.screens.find(s => s.id === 'this_or_that')?.pairs || [];
+  totPairs.forEach((pair, i) => {
+    const pick = museAnswers['this_or_that_' + i];
+    if (pick === 'a') synthesisLines.push(`Prefers: ${pair.a.label} (${pair.a.desc})`);
+    else if (pick === 'b') synthesisLines.push(`Prefers: ${pair.b.label} (${pair.b.desc})`);
+  });
+
+  if (museAnswers.emotion?.length) synthesisLines.push(`Primary emotions: ${museAnswers.emotion.join(', ')}`);
+  if (museAnswers.avoid) synthesisLines.push(`Avoid: ${museAnswers.avoid}`);
+  if (museAnswers.personality) synthesisLines.push(`Brand personality: ${museAnswers.personality}`);
+
+  let designIntent = '';
+
+  if (synthesisLines.length > 0) {
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: `Synthesize these design intake answers into a single paragraph of design direction for the CDO to follow when building the website. Write it as instructions to yourself — specific, actionable, no fluff.\n\n${synthesisLines.join('\n')}`,
+          session_id: sid,
+        }),
+      });
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      let fullText = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop() || '';
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const parsed = JSON.parse(line.slice(6));
+            if (parsed.type === 'text') fullText += parsed.text;
+          } catch {}
+        }
+      }
+      designIntent = fullText.replace(/\*\*/g, '').trim();
+    } catch (err) {
+      console.error('Muse synthesis failed:', err);
+      designIntent = synthesisLines.join('. ');
+    }
+
+    // Write to Supabase
+    if (sid && designIntent) {
+      fetch('/api/qualify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: sid,
+          design_intent: designIntent,
+          muse_answers: museAnswers,
+        }),
+      }).catch(() => {});
+    }
+  }
+
+  // Show synthesis in chat
+  if (designIntent) {
+    addMessage('agent', designIntent, 'CDO');
+  }
+
+  await new Promise(r => setTimeout(r, 1000));
+  addMessage('agent', 'Design direction locked. Starting your build now...', 'CDO');
+  await new Promise(r => setTimeout(r, 500));
+
+  startBuildEngine(sid);
+}
+
+// Intercept sendMessage for Muse text questions
+const _originalSendMessage = typeof sendMessage === 'function' ? sendMessage : null;
+
 function showMuseIntake(sid) {
+  // Legacy fallback — redirect to chat-based Muse
+  startMuseChat(sid);
+}
+
+// Keep old function name for compatibility but it's now unused
+function _legacyShowMuseIntake(sid) {
   museStep = 0;
   museAnswers = {};
 
@@ -5278,10 +5595,8 @@ async function pollPaymentStatus(sid) {
 
 function onPaymentConfirmed(sid) {
   document.getElementById('paywall-panel').classList.remove('visible');
-  // HIT-73: Muse intake fires for ALL quick_build sessions
-  // needType gate was broken — null need_type bypassed Muse entirely
-  // Design preferences are valuable regardless of entry path
-  showMuseIntake(sid);
+  // HIT-83: Muse intake runs in chat, not popup
+  startMuseChat(sid);
 }
 
 // Also check URL params for return from Stripe redirect (fallback)
@@ -6243,6 +6558,15 @@ function showFullEngagementHandoff(sid) {
 async function sendMessage() {
   const text = input.value.trim();
   if (!text || isStreaming) return;
+
+  // HIT-83: Intercept for Muse text questions
+  if (window._museTextHandler) {
+    input.value = '';
+    input.style.height = 'auto';
+    addMessage('user', text);
+    window._museTextHandler(text);
+    return;
+  }
 
   isStreaming = true;
   sendBtn.disabled = true;
