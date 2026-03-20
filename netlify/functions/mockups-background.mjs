@@ -1,7 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+// HIT-90: Fresh client per request
+function createAnthropicClient() {
+  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+}
 
 const supabase = createClient(
   process.env.SUPABASE_URL || 'https://ttvhafsvfhsanyucmcuw.supabase.co',
@@ -16,7 +19,7 @@ const TIER1_DIRECTION_BRIEFS = [
   { id: 'C', brief: 'Direction C should feel bold, modern, and premium. High contrast, dramatic type, unexpected design choices. The kind of site that makes you stop scrolling.' },
 ];
 
-async function generateTier1(session) {
+async function generateTier1(session, anthropic) {
   const clientBrief = buildClientBrief(session);
   return Promise.all(TIER1_DIRECTION_BRIEFS.map(async (dir) => {
     try {
@@ -58,7 +61,7 @@ For each: name (3-5 words), framing (2-3 sentences specific to THIS project), fe
 OUTPUT: Return ONLY this JSON array:
 [{"name":"...","framing":"...","features":["..."],"approach":"..."},...]`;
 
-async function generateTier2(session) {
+async function generateTier2(session, anthropic) {
   const clientBrief = buildClientBrief(session);
   try {
     const response = await anthropic.messages.create({
@@ -83,7 +86,7 @@ For each: name (3-5 words), vision (2-3 sentences specific to their project), pi
 OUTPUT: Return ONLY this JSON array:
 [{"name":"...","vision":"...","pillars":["..."],"roadmap":{"mvp":"...","scale":"...","evolve":"..."}},...]`;
 
-async function generateTier3(session) {
+async function generateTier3(session, anthropic) {
   const clientBrief = buildClientBrief(session);
   try {
     const response = await anthropic.messages.create({
@@ -145,14 +148,17 @@ function buildClientBrief(session) {
 // Netlify auto-returns 202 for background functions.
 // The function continues running for up to 300s (configured in netlify.toml).
 
+const NO_CACHE_HEADERS = { 'Cache-Control': 'no-store, no-cache, must-revalidate' };
+
 export default async (req) => {
+  const anthropic = createAnthropicClient(); // HIT-90: Fresh client per request
   let sessionId = null;
 
   try {
     const body = await req.json();
     sessionId = body.session_id;
 
-    if (!sessionId) return new Response('session_id required', { status: 400 });
+    if (!sessionId) return new Response('session_id required', { status: 400, headers: NO_CACHE_HEADERS });
 
     // Clear previous results, increment retry count if re-triggering
     const { data: existing } = await supabase
@@ -173,15 +179,15 @@ export default async (req) => {
       await supabase.from('sessions').update({
         mockup_results: { status: 'failed', error: 'Session not found' },
       }).eq('id', sessionId);
-      return new Response('Session not found', { status: 404 });
+      return new Response('Session not found', { status: 404, headers: NO_CACHE_HEADERS });
     }
 
     const tier = session.engagement_tier || 'launchpad';
     let directions;
 
-    if (tier === 'quick_build') directions = await generateTier1(session);
-    else if (tier === 'full_engagement') directions = await generateTier3(session);
-    else directions = await generateTier2(session);
+    if (tier === 'quick_build') directions = await generateTier1(session, anthropic);
+    else if (tier === 'full_engagement') directions = await generateTier3(session, anthropic);
+    else directions = await generateTier2(session, anthropic);
 
     const calendlyUrl = process.env.CALENDLY_URL || null;
 
@@ -196,7 +202,7 @@ export default async (req) => {
       },
     }).eq('id', sessionId);
 
-    return new Response('OK', { status: 200 });
+    return new Response('OK', { status: 200, headers: NO_CACHE_HEADERS });
   } catch (err) {
     console.error('mockups failed:', err.message);
     if (sessionId) {
@@ -208,7 +214,7 @@ export default async (req) => {
         console.error('Failed to write failure state:', writeErr.message);
       }
     }
-    return new Response(err.message, { status: 500 });
+    return new Response(err.message, { status: 500, headers: NO_CACHE_HEADERS });
   }
 };
 

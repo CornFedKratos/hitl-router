@@ -2,10 +2,13 @@ import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 import { sendNotification } from './notify.mjs';
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-  timeout: 15 * 60 * 1000, // 15 minutes — Opus builds can take a while
-});
+// HIT-90: Fresh client per request to prevent connection state issues
+function createAnthropicClient() {
+  return new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY,
+    timeout: 15 * 60 * 1000,
+  });
+}
 
 const supabase = createClient(
   process.env.SUPABASE_URL || 'https://ttvhafsvfhsanyucmcuw.supabase.co',
@@ -364,13 +367,16 @@ Note findings with recommendations. Close: "Security review complete. Build comp
 
 // ── Background function handler ──
 
+const NO_CACHE_HEADERS = { 'Cache-Control': 'no-store, no-cache, must-revalidate' };
+
 export default async (req) => {
   let session_id = null;
+  const anthropic = createAnthropicClient(); // Fresh client per request
 
   try {
     const body = await req.json();
     session_id = body.session_id;
-    if (!session_id) return new Response('session_id required', { status: 400 });
+    if (!session_id) return new Response('session_id required', { status: 400, headers: NO_CACHE_HEADERS });
 
     // Verify payment
     const { data: session, error } = await supabase
@@ -381,7 +387,7 @@ export default async (req) => {
         build_phase: 'failed',
         build_results: { status: 'failed', error: 'Session not found' },
       }).eq('id', session_id);
-      return new Response('Session not found', { status: 404 });
+      return new Response('Session not found', { status: 404, headers: NO_CACHE_HEADERS });
     }
 
     if (!session.payment_confirmed) {
@@ -389,7 +395,7 @@ export default async (req) => {
         build_phase: 'failed',
         build_results: { status: 'failed', error: 'Payment not confirmed' },
       }).eq('id', session_id);
-      return new Response('Payment not confirmed', { status: 402 });
+      return new Response('Payment not confirmed', { status: 402, headers: NO_CACHE_HEADERS });
     }
 
     // Mark build started
@@ -568,7 +574,7 @@ Output ONLY the raw HTML. No markdown fences. No explanation. No preamble.`;
       });
     }
 
-    return new Response('OK', { status: 200 });
+    return new Response('OK', { status: 200, headers: NO_CACHE_HEADERS });
   } catch (err) {
     console.error('build-engine failed:', err.message);
     if (session_id) {
@@ -581,6 +587,6 @@ Output ONLY the raw HTML. No markdown fences. No explanation. No preamble.`;
         console.error('Failed to write failure state:', writeErr.message);
       }
     }
-    return new Response(err.message, { status: 500 });
+    return new Response(err.message, { status: 500, headers: NO_CACHE_HEADERS });
   }
 };

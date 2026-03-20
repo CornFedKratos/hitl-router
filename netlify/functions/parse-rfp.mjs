@@ -1,7 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+// HIT-90: Fresh client per request
+function createAnthropicClient() {
+  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+}
 
 const supabase = createClient(
   process.env.SUPABASE_URL || 'https://ttvhafsvfhsanyucmcuw.supabase.co',
@@ -61,10 +64,12 @@ async function extractText(buffer, filename) {
 }
 
 export default async (req) => {
+  const anthropic = createAnthropicClient(); // HIT-90
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Cache-Control': 'no-store, no-cache, must-revalidate',
   };
 
   if (req.method === 'OPTIONS') {

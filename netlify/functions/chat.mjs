@@ -5,9 +5,10 @@ import { sendNotification } from './notify.mjs';
 
 // ── Environment ──
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+// HIT-90: Fresh client per request to prevent connection state issues
+function createAnthropicClient() {
+  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+}
 
 const supabase = createClient(
   process.env.SUPABASE_URL || 'https://ttvhafsvfhsanyucmcuw.supabase.co',
@@ -457,11 +458,14 @@ async function completePhase0(sessionId, metadata, tierData) {
 // ── Netlify function handler ──
 
 export default async (req) => {
+  const anthropic = createAnthropicClient(); // HIT-90: Fresh client per request
+
   // CORS headers
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Cache-Control': 'no-store, no-cache, must-revalidate',
   };
 
   if (req.method === 'OPTIONS') {
