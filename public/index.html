@@ -3267,8 +3267,11 @@ async function reenterSession(sid) {
 
     // 4b. Intake never completed — CPO flow needs to finish
     if (!session.go_decision && !session.engagement_tier && session.phase === 0) {
-      addMessage('agent', `Welcome back! Let's pick up where we left off.`, 'CPO');
-      // Let the user continue the chat naturally — the CPO will resume
+      // Show session ID so they always have it
+      showSessionId(sid);
+      // Welcome back message — don't auto-trigger any API call
+      // Let the user send a message when ready, which triggers the CPO
+      addMessage('agent', `Welcome back! Your answers are saved. Send a message when you're ready to continue and we'll pick up where we left off.`, 'CPO');
       return;
     }
 
@@ -3333,13 +3336,18 @@ function showBuildRetryUI(sid) {
   const panel = document.getElementById('build-panel');
   const output = document.getElementById('build-output');
   panel.classList.add('visible');
+  showSessionId(sid);
 
+  const resumeUrl = `${location.origin}${location.pathname}?session=${sid}`;
   output.innerHTML = `
     <div style="text-align:center;padding:32px;">
       <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:12px;">Something went wrong on our end.</div>
-      <div style="color:var(--muted);margin-bottom:24px;">Your payment is safe. Want to try the build again?</div>
+      <div style="color:var(--muted);margin-bottom:24px;">Your payment is safe and your answers are saved. Want to try the build again?</div>
       <button onclick="retryBuild('${sid}')" style="background:var(--blue);color:#fff;border:none;border-radius:12px;padding:14px 32px;font-size:14px;font-weight:500;cursor:pointer;transition:all 0.2s;">Try again →</button>
-      <div id="build-retry-escalation" style="display:none;margin-top:20px;font-size:13px;color:var(--muted);">
+      <div style="margin-top:20px;font-size:12px;color:var(--muted);">
+        You can also come back later: <a href="${resumeUrl}" style="color:var(--blue);font-family:'JetBrains Mono',monospace;font-size:11px;">${sid}</a>
+      </div>
+      <div id="build-retry-escalation" style="display:none;margin-top:12px;font-size:13px;color:var(--muted);">
         Still not working? <a href="mailto:don@s3technology.io" style="color:var(--blue);">Contact Don directly</a>
       </div>
     </div>
@@ -6916,18 +6924,44 @@ async function sendMessage() {
     }
   } catch (err) {
     console.error('Chat error:', err.message);
-    // HIT-90: Friendly error with retry — not raw error dump
+    const errMsg = err.message || '';
+    const isServiceError = errMsg.includes('credit balance') || errMsg.includes('rate limit') || errMsg.includes('500') || errMsg.includes('502') || errMsg.includes('503') || errMsg.includes('overloaded');
     const lastUserMsg = input._lastSentMessage || '';
-    const errorMsg = document.createElement('div');
-    errorMsg.className = 'message agent';
-    errorMsg.innerHTML = `<div class="agent-avatar">${getAgentIcon('CPO')}</div><div>
-      <div class="message-content" style="border-color:rgba(248,113,113,0.3);">
-        <div style="margin-bottom:12px;">Something went wrong on our end. This is usually temporary.</div>
-        <button onclick="retryChatMessage('${escapeHtml(lastUserMsg.replace(/'/g, "\\'"))}')" style="background:var(--blue);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s;">Try again →</button>
-        <div style="margin-top:12px;font-size:11px;color:var(--muted);">If this keeps happening, <a href="mailto:don@s3technology.io" style="color:var(--blue);">contact Don</a></div>
-      </div>
-    </div>`;
-    chatArea.appendChild(errorMsg);
+    const sid = sessionId || '';
+    const resumeUrl = sid ? `${location.origin}${location.pathname}?session=${sid}` : '';
+
+    const errorEl = document.createElement('div');
+    errorEl.className = 'message agent';
+
+    if (isServiceError && sid) {
+      // Service error — preserve session, don't retry a broken API
+      errorEl.innerHTML = `<div class="agent-avatar">${getAgentIcon('CPO')}</div><div>
+        <div class="message-content" style="border-color:rgba(248,113,113,0.3);">
+          <div style="font-weight:600;margin-bottom:8px;">We're experiencing a temporary service issue.</div>
+          <div style="margin-bottom:16px;color:var(--muted);">Your answers are saved — nothing is lost. Come back anytime and you'll pick up exactly where you left off.</div>
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px;">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Your session ID</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:13px;user-select:all;color:var(--text);">${escapeHtml(sid)}</div>
+          </div>
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px;">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Resume link</div>
+            <a href="${resumeUrl}" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--blue);word-break:break-all;">${escapeHtml(resumeUrl)}</a>
+          </div>
+          <div style="font-size:12px;color:var(--muted);">Or <a href="mailto:don@s3technology.io" style="color:var(--blue);">contact Don</a> and reference your session ID.</div>
+        </div>
+      </div>`;
+    } else {
+      // Transient error — offer retry
+      errorEl.innerHTML = `<div class="agent-avatar">${getAgentIcon('CPO')}</div><div>
+        <div class="message-content" style="border-color:rgba(248,113,113,0.3);">
+          <div style="margin-bottom:12px;">Something went wrong. This is usually temporary.</div>
+          <button onclick="retryChatMessage('${escapeHtml(lastUserMsg.replace(/'/g, "\\'"))}')" style="background:var(--blue);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s;">Try again →</button>
+          ${sid ? `<div style="margin-top:12px;font-size:11px;color:var(--muted);">Your session is saved: <span style="font-family:'JetBrains Mono',monospace;user-select:all;">${escapeHtml(sid)}</span></div>` : ''}
+          <div style="margin-top:8px;font-size:11px;color:var(--muted);">If this keeps happening, <a href="mailto:don@s3technology.io" style="color:var(--blue);">contact Don</a></div>
+        </div>
+      </div>`;
+    }
+    chatArea.appendChild(errorEl);
     scrollToBottom();
   } finally {
     isStreaming = false;
