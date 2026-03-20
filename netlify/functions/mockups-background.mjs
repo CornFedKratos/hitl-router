@@ -191,14 +191,20 @@ export default async (req) => {
 
     const calendlyUrl = process.env.CALENDLY_URL || null;
 
+    // HIT-90: Check if any directions actually have content — don't mark as complete if all failed
+    const hasContent = directions.some(d => d.content && d.content.length > 100);
+    const hasErrors = directions.some(d => d.error);
+    const mockupStatus = hasContent ? 'complete' : 'failed';
+
     // Write results to Supabase
     await supabase.from('sessions').update({
       mockup_tier: tier,
       mockup_results: {
-        status: 'complete',
+        status: mockupStatus,
         tier,
         directions,
         calendly_url: tier === 'full_engagement' ? calendlyUrl : null,
+        ...((!hasContent && hasErrors) ? { error: directions.find(d => d.error)?.error || 'All directions failed to generate' } : {}),
       },
     }).eq('id', sessionId);
 

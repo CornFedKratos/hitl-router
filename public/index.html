@@ -3261,8 +3261,19 @@ async function reenterSession(sid) {
       return;
     }
 
+    // HIT-90: Check mockup content quality for resume decisions
+    const mockupDirsCheck = session.mockup_results?.directions || [];
+    const mockupsHaveRealContent = mockupDirsCheck.some(d => d.content && d.content.length > 100);
+
+    // 4b. Intake never completed — CPO flow needs to finish
+    if (!session.go_decision && !session.engagement_tier && session.phase === 0) {
+      addMessage('agent', `Welcome back! Let's pick up where we left off.`, 'CPO');
+      // Let the user continue the chat naturally — the CPO will resume
+      return;
+    }
+
     // 5. Direction selected, no payment — show direction cards so they can re-select and pay
-    if (session.mockup_direction_selected && !session.payment_confirmed && session.mockup_results?.status === 'complete') {
+    if (session.mockup_direction_selected && !session.payment_confirmed && session.mockup_results?.status === 'complete' && mockupsHaveRealContent) {
       mockupData = session.mockup_results;
       selectedMockupDirection = session.mockup_direction_selected;
       const panel = document.getElementById('mockup-panel');
@@ -3279,8 +3290,8 @@ async function reenterSession(sid) {
       return;
     }
 
-    // 6. Mockups complete — show direction cards
-    if (session.mockup_results?.status === 'complete') {
+    // 6. Mockups complete with real content — show direction cards
+    if (session.mockup_results?.status === 'complete' && mockupsHaveRealContent) {
       mockupData = session.mockup_results;
       const panel = document.getElementById('mockup-panel');
       const actions = document.getElementById('mockup-actions');
