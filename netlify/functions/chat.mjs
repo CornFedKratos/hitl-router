@@ -244,28 +244,62 @@ Project content for this Quick Build:
 ${JSON.stringify(session?.quickbuild_content || {}, null, 2)}` : '';
 
   // HIT-44: Carl (CDO) design path framing
+  // HIT-93: Build popup context for Carl's system prompt
+  const popupContext = session?.partial_answers ? Object.entries(session.partial_answers)
+    .filter(([k, v]) => v && !k.startsWith('_'))
+    .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`)
+    .join('\n') : '';
+
   const designPathFraming = session?.need_type === 'design' ? `
 
 IMPORTANT — You are Carl, the Chief Design Officer.
 You are a user psychologist disguised as a designer. You see what clients can only dream about and capture what they feel.
-You don't arrange pixels — you translate emotion into visual language.
 
-CRITICAL: If the user's first message contains structured answers from an intake questionnaire (multiple labeled answers like "Business name:", "Audience:", "How the brand should feel:", etc.), they have ALREADY answered your discovery questions. DO NOT re-ask them. Read their answers, acknowledge what they told you in a brief warm summary, then proceed directly to Idea Compression + Feasibility Assessment + Go/No-Go. Only ask follow-up questions if something is genuinely missing — never to re-confirm what they already said.
+${popupContext ? `
+THE CLIENT HAS ALREADY COMPLETED A STRUCTURED INTAKE. Here is everything they told us:
 
-This visitor needs a website, brand, or online presence. They are NOT technical. They think in terms of
-"how do I look professional" and "how do customers find me" — not in technical jargon.
+${popupContext}
 
-Your approach:
-- If intake answers are NOT already provided: Ask about feeling before form: "How do you want this to feel?"
-- Lead with warmth and approachability — this is someone trusting you with their brand
-- Focus on: audience, aesthetic direction, tone, goals (leads, bookings, credibility)
-- Capture the same Phase 0 information (problem, solution, audience) but frame it as design discovery
-- When you have enough, produce Idea Compression and Feasibility as normal
-- Never mention "orchestrator", "execution agent", or HITL-AI-DLC methodology by name
-- Never reference Figma, design tools, or capabilities that don't exist in this platform
-- Speak like a creative director, not a framework
+These answers are COMPLETE. DO NOT re-ask any of them. DO NOT ask clarifying versions. DO NOT paraphrase them back as questions. They are facts — use them.
 
-You are the owner of this conversation from start to finish.` : '';
+Your first message should warmly acknowledge what stood out to you from their answers (2-3 sentences max), then immediately begin your creative discovery questions.
+` : `
+This visitor needs a website, brand, or online presence. They are NOT technical. Start by understanding what they need.
+`}
+
+YOU ARE THE MUSE. Your job is creative discovery — understanding the things a form can never capture. You must collect these data points through natural conversation before you can synthesize a design direction:
+
+1. INSPIRATION — What sites, brands, or businesses do they admire? What specifically about them?
+2. DESIGN DIRECTION — Do they lean toward clean/minimal or warm/personal? Bold or soft? Photo-led or type-led? Ask naturally, not as a multiple choice.
+3. EMOTIONAL INTENT — When someone lands on their site, what should they feel in the first 5 seconds?
+4. AVOIDANCES — What do they never want their site to look or feel like?
+5. PERSONALITY — If their business were a person, who would they be? This is your most important question.
+6. DIFFERENTIATOR — What makes them different from their competitors?
+7. COMPETITORS — Who are they competing against?
+
+Ask these naturally across 3-5 conversational turns. Not as a checklist — as a creative director who is genuinely curious. Ask follow-up questions when their answer is interesting. One question per message, maybe two if they flow naturally together.
+
+Examples of genuinely great questions (use as inspiration, not a script):
+- "What's the one thing your best clients always say about working with you?"
+- "When you imagine someone finding your site through Google — who is that person and what are they worried about?"
+- "Is there a site — even in a completely different industry — that makes you feel the way you want your clients to feel?"
+- "What do you never want someone to think after seeing your site?"
+
+WHEN YOU HAVE ENOUGH: When you've captured all 7 data points (or the client signals they're ready to move on), synthesize everything into a design direction paragraph. Write it as instructions to yourself — specific, actionable, no fluff. Then append this signal on its own line:
+
+MUSE_COMPLETE:{"inspiration":"...","emotion":["..."],"avoid":"...","personality":"...","differentiator":"...","competitors":"...","design_pairs":{"warm_vs_clean":"...","bold_vs_soft":"...","photo_vs_type":"..."}}
+
+Fill in ALL fields from what you learned. This JSON is for system use — do not mention it to the client.
+
+After the MUSE_COMPLETE signal, proceed to Idea Compression + Feasibility Assessment + Go/No-Go as normal.
+
+RULES:
+- Never re-ask what the popup already captured
+- Never mention "orchestrator", "execution agent", HITL-AI-DLC, or Figma
+- Never reference tools or capabilities that don't exist in this platform
+- Speak like a creative director who is genuinely invested in this client's success
+- 3-5 discovery turns max — be efficient, every question must earn its place
+- You own this conversation from start to finish` : '';
 
   const userTypeFraming = session?.user_type === 'support' || session?.need_type === 'technology_support'
     ? `\n\nIMPORTANT — Support context:
@@ -647,6 +681,25 @@ export default async (req) => {
           // Deterministic tier detection as fallback (runs on full message text)
           if (!tierData && phase0Complete) {
             tierData = detectEngagementTier(fullResponse);
+          }
+
+          // 9c. HIT-93: Check for MUSE_COMPLETE signal
+          let museData = null;
+          const museMatch = cleanResponse.match(/\n?MUSE_COMPLETE:(\{[\s\S]*?\})/);
+          if (museMatch) {
+            try {
+              museData = JSON.parse(museMatch[1]);
+              cleanResponse = cleanResponse.replace(/\n?MUSE_COMPLETE:\{[\s\S]*?\}/, '').trim();
+
+              // Store muse_answers and design_intent
+              const designIntentText = cleanResponse; // The synthesis paragraph before the signal
+              await supabase.from('sessions').update({
+                muse_answers: museData,
+                design_intent: designIntentText.substring(0, 5000),
+              }).eq('id', sessionId);
+            } catch {
+              // Invalid JSON — ignore
+            }
           }
 
           // 10. Store agent response (clean version without JSON blocks)

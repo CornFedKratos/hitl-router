@@ -4124,43 +4124,24 @@ async function createLeadSession() {
 }
 
 async function submitPopupFlow() {
-  // Build structured prompt from answers — include ALL fields from both paths
-  const lines = [];
-  lines.push('I just completed your intake questionnaire. Here are all of my answers — DO NOT re-ask any of these questions. Proceed directly to your feasibility assessment and Go/No-Go recommendation.\n');
-
-  // Design path fields
-  if (popupAnswers.business_name) lines.push(`Business name and what we do: ${popupAnswers.business_name}`);
-  if (popupAnswers.services) lines.push(`Services/products we offer: ${popupAnswers.services}`);
-  if (popupAnswers.audience) lines.push(`Our best customers: ${popupAnswers.audience}`);
-  if (popupAnswers.goal) lines.push(`#1 thing we want visitors to do: ${popupAnswers.goal}`);
-  if (popupAnswers.location) lines.push(`Where we're based: ${popupAnswers.location}`);
-  if (popupAnswers.feeling) lines.push(`How the brand should feel: ${popupAnswers.feeling}`);
-  if (popupAnswers.style) lines.push(`Style preferences: ${popupAnswers.style}`);
-  if (popupAnswers.success) lines.push(`Success looks like: ${popupAnswers.success}`);
-  if (popupAnswers.existing_url) lines.push(`Existing website: ${popupAnswers.existing_url}`);
-
-  // Tech path fields
-  if (popupAnswers.problem) lines.push(`Problem we're solving: ${popupAnswers.problem}`);
-  if (popupAnswers.solution) lines.push(`Solution we're imagining: ${popupAnswers.solution}`);
-  if (!popupAnswers.success && popupAnswers.success) lines.push(`Success looks like: ${popupAnswers.success}`);
-
-  // Shared fields
-  if (popupAnswers.client) lines.push(`Project type: ${popupAnswers.client}`);
-  if (popupAnswers.timeline) lines.push(`Timeline: ${popupAnswers.timeline}`);
-  if (popupAnswers.stakeholders) lines.push(`Decision makers: ${popupAnswers.stakeholders}`);
-  if (popupAnswers.existing_systems) lines.push(`Existing systems: ${popupAnswers.existing_systems}`);
-  if (popupAnswers.constraints) lines.push(`Technical constraints: ${popupAnswers.constraints}`);
-
-  lines.push('\nAll intake questions have been answered. Please move forward.');
-
-  const structuredMessage = lines.join('\n');
-
-  // Close popup
+  // HIT-93: Close popup and sync answers to Supabase
   document.getElementById('popup-overlay').classList.remove('visible');
   clearIdleTimer();
 
-  // Send as first message to chat
-  input.value = structuredMessage;
+  // Write popup answers to session (they're already being synced during popup,
+  // but ensure the final state is written)
+  if (sessionId) {
+    fetch('/api/qualify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, partial_answers: popupAnswers }),
+    }).catch(() => {});
+  }
+
+  // HIT-93: Invisible handoff — send a simple trigger message, not a wall of answers.
+  // Carl has the popup answers in his system prompt via session.partial_answers.
+  // The user never sees a visible handoff bubble.
+  input.value = 'Let\'s move forward.';
   sendMessage();
 }
 
@@ -4652,6 +4633,7 @@ function stripPhaseComplete(text) {
     .replace(/\n?PHASE0_COMPLETE:\{.*?\}$/s, '')
     .replace(/\n?QUICKBUILD_READY:\{.*?\}$/s, '')
     .replace(/\n?ENGAGEMENT_TIER:\{.*?\}$/s, '')
+    .replace(/\n?MUSE_COMPLETE:\{[\s\S]*?\}$/s, '')
     .trim();
 }
 
@@ -5821,8 +5803,9 @@ async function pollPaymentStatus(sid) {
 
 function onPaymentConfirmed(sid) {
   document.getElementById('paywall-panel').classList.remove('visible');
-  // HIT-83: Muse intake runs in chat, not popup
-  startMuseChat(sid);
+  // HIT-93: Muse data was already captured in Carl's conversation before payment.
+  // Go straight to build.
+  startBuildEngine(sid);
 }
 
 // Also check URL params for return from Stripe redirect (fallback)
