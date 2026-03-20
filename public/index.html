@@ -46,7 +46,7 @@
       align-items: center;
       justify-content: space-between;
       padding: 0 24px;
-      height: 56px;
+      height: 44px;
       background: rgba(10, 10, 10, 0.95);
       border-bottom: 1px solid var(--border);
       flex-shrink: 0;
@@ -75,6 +75,31 @@
       transition: color 0.2s;
     }
     .nav-links a:hover { color: var(--text); }
+    /* HIT-94: Hide nav links during conversation, show context chip */
+    body.in-conversation .nav-links { display: none; }
+    body.in-conversation .nav-hamburger { display: none; }
+    .nav-context {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      transition: all 0.2s;
+    }
+    .nav-context:hover { border-color: var(--blue); background: var(--blue-glow); }
+    body.in-conversation .nav-context { display: flex; }
+    .nav-context-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--blue);
+      flex-shrink: 0;
+    }
+    .nav-context-dot.done { background: #6EE7B7; }
     .nav-hamburger {
       display: none;
       background: none;
@@ -1410,6 +1435,8 @@
       border-bottom: 1px solid var(--border);
       flex-shrink: 0;
     }
+    /* HIT-94: Hide phase bar during conversation — replaced by nav context chip */
+    body.in-conversation .phase-bar { display: none; }
     .phase-step {
       display: flex;
       align-items: center;
@@ -1503,6 +1530,8 @@
       padding: 10px 24px;
       font-size: 12px;
       color: var(--muted);
+    }
+    /* HIT-94: Summary panel hidden during conversation — accessible via bottom sheet */
       flex-shrink: 0;
       overflow: hidden;
       transition: max-height 0.2s ease;
@@ -2020,6 +2049,56 @@
     .footer a { color: var(--blue); text-decoration: none; }
     .footer a:hover { text-decoration: underline; }
 
+    /* ── HIT-94: Conversation mode — maximize chat space ── */
+    body.in-conversation .summary-panel { display: none !important; }
+    body.in-conversation .footer { display: none; }
+
+    /* Bottom sheet for summary — triggered from nav context chip */
+    .bottom-sheet-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 900;
+    }
+    .bottom-sheet-backdrop.visible { display: block; }
+    .bottom-sheet {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      border-radius: 16px 16px 0 0;
+      padding: 24px;
+      z-index: 901;
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      max-height: 60vh;
+      overflow-y: auto;
+    }
+    .bottom-sheet.visible { transform: translateY(0); }
+    .bottom-sheet-handle {
+      width: 40px; height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      margin: 0 auto 16px;
+    }
+    .bottom-sheet-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 16px;
+    }
+    .bottom-sheet-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .bottom-sheet-row:last-child { border-bottom: none; }
+    .bottom-sheet-label { color: var(--muted); }
+    .bottom-sheet-value { color: var(--text); text-align: right; max-width: 60%; }
+
     /* ── Animations ── */
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(8px); }
@@ -2095,8 +2174,20 @@
       <a href="https://github.com/CornFedKratos/hitl-aidlc" target="_blank" rel="noopener">Skill Suite</a>
       <a href="https://s3technology.io/#contact" target="_blank" rel="noopener">Contact</a>
     </div>
+    <div class="nav-context" id="nav-context" onclick="toggleBottomSheet()">
+      <span id="nav-context-label">Catalyst</span>
+      <div class="nav-context-dot" id="nav-context-dot"></div>
+    </div>
     <button class="nav-hamburger" id="nav-hamburger" onclick="toggleMobileNav()" aria-label="Toggle navigation">&#9776;</button>
   </nav>
+
+  <!-- HIT-94: Bottom sheet for project summary -->
+  <div class="bottom-sheet-backdrop" id="bottom-sheet-backdrop" onclick="closeBottomSheet()"></div>
+  <div class="bottom-sheet" id="bottom-sheet">
+    <div class="bottom-sheet-handle"></div>
+    <div class="bottom-sheet-title">Your Project</div>
+    <div id="bottom-sheet-content"></div>
+  </div>
 
   <!-- Phase Bar -->
   <div class="phase-bar">
@@ -3227,6 +3318,8 @@ async function reenterSession(sid) {
 
     // Populate summary panel
     updateSummaryPanel();
+    // HIT-94: Enter conversation mode on resume
+    enterConversationMode();
 
     // Clean URL
     history.replaceState({}, '', location.pathname);
@@ -3420,6 +3513,64 @@ async function pollBuildStatus(sid) {
 
   // Timeout
   showBuildRetryUI(sid);
+}
+
+// HIT-94: Conversation mode — toggle when first message is sent
+function enterConversationMode() {
+  document.body.classList.add('in-conversation');
+  updateNavContext();
+}
+
+function updateNavContext() {
+  const label = document.getElementById('nav-context-label');
+  const dot = document.getElementById('nav-context-dot');
+  if (!label) return;
+
+  const bName = (popupAnswers?.business_name || '').split(/\s*[-–—]\s*/)[0].trim();
+  label.textContent = bName || 'Catalyst';
+
+  // Update dot based on phase
+  if (phase0Complete) {
+    dot.className = 'nav-context-dot done';
+  } else {
+    dot.className = 'nav-context-dot';
+  }
+}
+
+function toggleBottomSheet() {
+  const backdrop = document.getElementById('bottom-sheet-backdrop');
+  const sheet = document.getElementById('bottom-sheet');
+  const isOpen = sheet.classList.contains('visible');
+
+  if (isOpen) {
+    closeBottomSheet();
+  } else {
+    // Populate content from popupAnswers
+    const content = document.getElementById('bottom-sheet-content');
+    const fields = [
+      ['Business', popupAnswers?.business_name],
+      ['Services', popupAnswers?.services],
+      ['Audience', popupAnswers?.audience],
+      ['Goal', popupAnswers?.goal],
+      ['Location', popupAnswers?.location],
+      ['Feeling', popupAnswers?.feeling],
+      ['Style', popupAnswers?.style],
+      ['Timeline', popupAnswers?.timeline],
+      ['Session', sessionId],
+    ].filter(([_, v]) => v);
+
+    content.innerHTML = fields.map(([label, value]) =>
+      `<div class="bottom-sheet-row"><span class="bottom-sheet-label">${label}</span><span class="bottom-sheet-value">${escapeHtml(String(value).substring(0, 80))}</span></div>`
+    ).join('');
+
+    backdrop.classList.add('visible');
+    sheet.classList.add('visible');
+  }
+}
+
+function closeBottomSheet() {
+  document.getElementById('bottom-sheet-backdrop').classList.remove('visible');
+  document.getElementById('bottom-sheet').classList.remove('visible');
 }
 
 // HIT-90: Retry last chat message after error
@@ -4605,6 +4756,8 @@ function onFirstMessage() {
   if (gate) gate.style.display = 'none';
   if (prechatOptions) prechatOptions.style.display = 'none';
   escapeHatch.classList.add('visible');
+  // HIT-94: Enter conversation mode — maximize chat space
+  enterConversationMode();
 }
 
 // ── Auto-resize textarea ──
