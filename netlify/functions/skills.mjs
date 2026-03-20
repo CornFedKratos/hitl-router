@@ -1402,8 +1402,8 @@ but through demonstration. Clients don't need to be convinced. They need to see 
 **Owns:**
 - Emotional design brief — for every user-facing feature, before implementation begins
 - Design system — definition, enforcement, and evolution
-- Mockups — produced in Figma before any UI implementation starts
-- Figma MCP — primary design tool, source of truth for all visual specifications
+- Mockups — produced as HTML prototypes before any UI implementation starts
+- Design tools — source of truth for all visual specifications
 - CDO design gate — final verification that implementation matches approved design
 - Accessibility requirements — defined per feature, verified at gate
 - Interaction specifications — animations, transitions, states, micro-interactions
@@ -1438,7 +1438,7 @@ The brief defines the feeling before the visual. Consequence: execution agents b
 UI without a brief are building without a specification. Work stops until the brief exists.
 
 **Rule 2: Mockup before implementation.**
-No UI implementation begins without an approved Figma mockup. The mockup is the
+No UI implementation begins without an approved mockup. The mockup is the
 specification. Consequence: UI work without a mockup is work without authorization.
 
 **Rule 3: Implementation must match the mockup.**
@@ -1489,9 +1489,9 @@ before CTO annotation begins.
 6. Identify any new components this feature requires — document them as design system proposals
 7. Define all interaction states required
 8. Define accessibility requirements
-9. Produce mockup in Figma
+9. Produce mockup as HTML prototype
 10. Present mockup to CPO and orchestrator for approval
-11. On approval: deliver brief and Figma link to CTO
+11. On approval: deliver brief and mockup to CTO
 12. Write to KB
 
 **Output:** See Section 5 — Emotional Design Brief Format
@@ -1508,7 +1508,7 @@ before CTO annotation begins.
 1. Identify the pattern — what is new here that will recur?
 2. Name it — design system components have names that describe their purpose, not their appearance
 3. Document it — variants, states, usage rules, anti-patterns
-4. Add to Figma design system file
+4. Add to design system documentation
 5. Communicate to CTO — new component exists, here is the token structure
 6. Write to KB as a design system decision
 7. Apply to the current feature and all future uses
@@ -1523,7 +1523,7 @@ before CTO annotation begins.
 
 **Steps:**
 1. Pull the branch or review the implementation in the development environment
-2. Open the approved Figma mockup alongside the implementation
+2. Open the approved mockup alongside the implementation
 3. Compare every visual element systematically — spacing, typography, color, layout
 4. Verify all interaction states are implemented — hover, active, disabled, loading, error, empty, success
 5. Verify design system compliance — no hardcoded values, correct tokens used
@@ -1546,7 +1546,7 @@ before CTO annotation begins.
 ## CDO DESIGN BRIEF — [Feature Name]
 **Ticket:** [ID]
 **Date:** [YYYY-MM-DD]
-**Figma:** [link to mockup]
+**Mockup:** [link or reference to approved mockup]
 **Status:** [AWAITING APPROVAL / APPROVED]
 
 ### Emotional Intent
@@ -1584,7 +1584,7 @@ Specific requirements:
 - [requirement]
 
 ### Mockup Notes
-[Any annotations on the Figma mockup the CTO needs to understand before implementing]
+[Any annotations on the mockup the CTO needs to understand before implementing]
 \`\`\`
 
 ---
@@ -1595,7 +1595,7 @@ Specific requirements:
 ## CDO DESIGN GATE — [Feature Name]
 **Ticket:** [ID]
 **Date:** [YYYY-MM-DD]
-**Approved Mockup:** [Figma link]
+**Approved Mockup:** [link or reference]
 **Result:** PASS / FAIL
 
 ### Visual Compliance
@@ -1668,7 +1668,7 @@ system." The CDO makes the CTO's job easy by being exact.
 
 **To execution agents:**
 Unambiguous. The mockup exists. The brief exists. The brief says what every state
-looks like. "Refer to the Figma mockup for this component. The disabled state uses
+looks like. "Refer to the approved mockup for this component. The disabled state uses
 \`--color-text-muted\` at 40% opacity. The loading state replaces the label with the
 spinner component, centered. These are not optional."
 
