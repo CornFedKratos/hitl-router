@@ -4478,7 +4478,11 @@ function markPreviousMessageCollapsible() {
   };
 
   const wrapper = el.querySelector('div');
-  if (wrapper) wrapper.insertBefore(summaryEl, contentEl);
+  if (wrapper && contentEl && contentEl.parentNode === wrapper) {
+    wrapper.insertBefore(summaryEl, contentEl);
+  } else if (wrapper) {
+    wrapper.appendChild(summaryEl);
+  }
 
   // Auto-collapse after 3 seconds
   setTimeout(() => {
