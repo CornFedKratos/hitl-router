@@ -2164,6 +2164,14 @@
           <input type="file" id="rfp-upload-gate" accept=".txt,.md,.docx,.pdf" style="display:none;" onchange="handleRfpUpload(this.files[0])">
         </label>
       </div>
+      <!-- HIT-87: Session resume input -->
+      <div style="text-align:center;margin-top:12px;">
+        <a onclick="document.getElementById('session-resume-input').style.display='flex'" style="font-size:12px;color:var(--muted);cursor:pointer;text-decoration:none;">Have a session ID? Resume where you left off &rarr;</a>
+        <div id="session-resume-input" style="display:none;margin-top:8px;justify-content:center;gap:8px;">
+          <input type="text" id="session-resume-id" placeholder="sess_xxxxxxxx" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12px;width:180px;">
+          <button onclick="resumeFromInput()" style="background:var(--blue);border:none;border-radius:8px;padding:8px 16px;color:#fff;font-size:12px;cursor:pointer;">Resume</button>
+        </div>
+      </div>
     </div>
 
     <!-- Entry Path Toggle (hidden until user type selected) -->
@@ -3212,6 +3220,7 @@ async function reenterSession(sid) {
     popupLeadData = {
       name: session.lead_name || '',
       email: session.lead_email || '',
+      phone: session.partial_answers?.phone || '',
       consent: true,
     };
     popupSessionCreated = true;
@@ -3222,9 +3231,56 @@ async function reenterSession(sid) {
     // Clean URL
     history.replaceState({}, '', location.pathname);
 
-    // Determine jump point
+    // HIT-87: Determine jump point — check ALL session states in priority order
+
+    // 1. Build complete — show artifact delivery
+    if (session.build_results?.status === 'complete' && session.build_results?.outputs) {
+      addMessage('agent', `Welcome back! Your build is ready. Here it is.`, 'CDO');
+      showArtifactDelivery(sid, session.build_results.tier || session.engagement_tier, session.build_results.outputs);
+      return;
+    }
+
+    // 2. Build failed — show retry
+    if (session.build_phase === 'failed' || session.build_results?.status === 'failed') {
+      addMessage('agent', `Welcome back. Your last build ran into an issue. Want to try again?`, 'CDO');
+      showBuildRetryUI(sid);
+      return;
+    }
+
+    // 3. Build in progress — resume polling
+    if (session.build_phase && !['complete', 'failed'].includes(session.build_phase) && session.build_engine_used) {
+      addMessage('agent', `Welcome back! Your build is still in progress. Hang tight.`, 'CDO');
+      pollBuildStatus(sid);
+      return;
+    }
+
+    // 4. Payment confirmed, no build yet — start Muse → build
+    if (session.payment_confirmed && !session.build_engine_used) {
+      addMessage('agent', `Welcome back! You've already selected a direction and payment is confirmed. Let's finish up.`, 'CDO');
+      startMuseChat(sid);
+      return;
+    }
+
+    // 5. Direction selected, no payment — show direction cards so they can re-select and pay
+    if (session.mockup_direction_selected && !session.payment_confirmed && session.mockup_results?.status === 'complete') {
+      mockupData = session.mockup_results;
+      selectedMockupDirection = session.mockup_direction_selected;
+      const panel = document.getElementById('mockup-panel');
+      const actions = document.getElementById('mockup-actions');
+      panel.classList.add('visible');
+      renderMockupDirections(mockupData);
+      actions.style.display = 'flex';
+      // Pre-select the direction they chose before
+      document.querySelectorAll('.mockup-card').forEach(c => {
+        c.classList.toggle('selected', c.dataset.dir === selectedMockupDirection);
+      });
+      document.getElementById('mockup-refine-btn').disabled = false;
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+
+    // 6. Mockups complete — show direction cards
     if (session.mockup_results?.status === 'complete') {
-      // Mockups already generated — show them
       mockupData = session.mockup_results;
       const panel = document.getElementById('mockup-panel');
       const actions = document.getElementById('mockup-actions');
@@ -3239,22 +3295,132 @@ async function reenterSession(sid) {
       }
 
       panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else if (session.mockup_results?.status === 'failed') {
-      // Failed — show retry panel
+      return;
+    }
+
+    // 7. Mockups failed — show retry
+    if (session.mockup_results?.status === 'failed') {
       const panel = document.getElementById('mockup-panel');
       panel.classList.add('visible');
       showMockupFailureUI(sid);
-    } else {
-      // No mockups yet — trigger generation
-      triggerMockups(sid);
+      return;
     }
+
+    // 8. Default — trigger mockups
+    triggerMockups(sid);
+
   } catch (err) {
     console.error('Session re-entry failed:', err);
-    // Graceful fallback — show normal flow with message
     document.getElementById('need-gate').style.display = '';
     const title = document.getElementById('need-gate-title');
     if (title) title.textContent = 'We couldn\u2019t find that session \u2014 let\u2019s start fresh.';
   }
+}
+
+// HIT-87: Build retry UI
+function showBuildRetryUI(sid) {
+  const panel = document.getElementById('build-panel');
+  const output = document.getElementById('build-output');
+  panel.classList.add('visible');
+
+  output.innerHTML = `
+    <div style="text-align:center;padding:32px;">
+      <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:12px;">Something went wrong on our end.</div>
+      <div style="color:var(--muted);margin-bottom:24px;">Your payment is safe. Want to try the build again?</div>
+      <button onclick="retryBuild('${sid}')" style="background:var(--blue);color:#fff;border:none;border-radius:12px;padding:14px 32px;font-size:14px;font-weight:500;cursor:pointer;transition:all 0.2s;">Try again →</button>
+      <div id="build-retry-escalation" style="display:none;margin-top:20px;font-size:13px;color:var(--muted);">
+        Still not working? <a href="mailto:don@s3technology.io" style="color:var(--blue);">Contact Don directly</a>
+      </div>
+    </div>
+  `;
+  panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+let buildRetryCount = 0;
+
+function retryBuild(sid) {
+  buildRetryCount++;
+  if (buildRetryCount >= 2) {
+    const esc = document.getElementById('build-retry-escalation');
+    if (esc) esc.style.display = 'block';
+  }
+  startBuildEngine(sid);
+}
+
+// HIT-87: Resume build polling for in-progress builds
+async function pollBuildStatus(sid) {
+  const panel = document.getElementById('build-panel');
+  const output = document.getElementById('build-output');
+  const progress = document.getElementById('build-progress');
+  const stepLabel = document.getElementById('build-step-label');
+
+  panel.classList.add('visible');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  const ROLES = ['CPO', 'CTO', 'CDO', 'CQO', 'CIO', 'CSO'];
+  progress.innerHTML = ROLES.map(() => '<div class="build-progress-step"></div>').join('');
+  output.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:14px;">Resuming your build...</div>';
+
+  let lastPhase = '';
+  for (let i = 0; i < 200; i++) {
+    await new Promise(r => setTimeout(r, 3000));
+
+    try {
+      const statusRes = await fetch(`/api/build-status?session_id=${encodeURIComponent(sid)}`);
+      if (!statusRes.ok) continue;
+
+      const result = await statusRes.json();
+
+      if (result.phase && result.phase !== lastPhase) {
+        lastPhase = result.phase;
+        const phaseIndex = ROLES.findIndex(r => r.toLowerCase() === result.phase);
+        if (phaseIndex >= 0) {
+          const steps = progress.querySelectorAll('.build-progress-step');
+          steps.forEach((s, idx) => {
+            if (idx < phaseIndex) s.className = 'build-progress-step done';
+            else if (idx === phaseIndex) s.className = 'build-progress-step active';
+            else s.className = 'build-progress-step';
+          });
+          stepLabel.textContent = `${ROLES[phaseIndex]} is working...`;
+        }
+      }
+
+      if (result.status === 'complete') {
+        stepLabel.textContent = 'Build complete';
+        progress.querySelectorAll('.build-progress-step').forEach(s => s.className = 'build-progress-step done');
+        showArtifactDelivery(sid, result.tier, result.outputs);
+        return;
+      }
+
+      if (result.status === 'failed') {
+        showBuildRetryUI(sid);
+        return;
+      }
+    } catch { continue; }
+  }
+
+  // Timeout
+  showBuildRetryUI(sid);
+}
+
+// HIT-87: Resume from session ID input field
+function resumeFromInput() {
+  const id = document.getElementById('session-resume-id')?.value.trim();
+  if (!id) return;
+  reenterSession(id);
+}
+
+// HIT-87: Surface session ID to the lead
+function showSessionId(sid) {
+  if (!sid) return;
+  const existing = document.getElementById('session-id-notice');
+  if (existing) return; // already shown
+  const notice = document.createElement('div');
+  notice.id = 'session-id-notice';
+  notice.style.cssText = 'text-align:center;padding:8px 16px;font-size:11px;color:var(--muted);font-family:"JetBrains Mono",monospace;background:var(--surface);border:1px solid var(--border);border-radius:8px;margin:8px auto;max-width:400px;';
+  notice.innerHTML = `Your session: <strong style="color:var(--text);user-select:all;">${escapeHtml(sid)}</strong> — save this to return anytime`;
+  const chatArea = document.getElementById('chat-area');
+  if (chatArea) chatArea.appendChild(notice);
 }
 
 async function checkReturningOrchestrator(token) {
@@ -5767,7 +5933,7 @@ async function startBuildEngine(sid) {
       let errMsg = 'Unknown error';
       try { const err = await res.json(); errMsg = err.error || errMsg; } catch {}
       stopLoadingMessages();
-      output.innerHTML = `<div style="color:#F87171;">Build failed: ${errMsg}. <a href="mailto:don@s3technology.io" style="color:var(--blue);">Contact Don</a></div>`;
+      showBuildRetryUI(sid);
       return;
     }
 
@@ -5835,7 +6001,7 @@ async function startBuildEngine(sid) {
     throw new Error('Build timed out');
   } catch (err) {
     stopLoadingMessages();
-    output.innerHTML = `<div style="color:#F87171;">Build failed. <a href="mailto:don@s3technology.io" style="color:var(--blue);">Contact Don</a></div>`;
+    showBuildRetryUI(sid);
     console.error('Build engine failed:', err);
   }
 }
@@ -6244,6 +6410,9 @@ const MOCKUP_RETRY_LIMIT = 2;
 const MOCKUP_POLL_TIMEOUT_MS = 180000; // 3 minutes
 
 async function triggerMockups(sid) {
+  // HIT-87: Surface session ID when mockups trigger (intake is complete)
+  showSessionId(sid);
+
   const panel = document.getElementById('mockup-panel');
   const contentEl = document.getElementById('mockup-panel-content');
   const actions = document.getElementById('mockup-actions');
