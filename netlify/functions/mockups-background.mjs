@@ -15,7 +15,7 @@ const supabase = createClient(
 
 const TIER1_DIRECTION_BRIEFS = [
   { id: 'A', brief: 'Direction A should feel warm, human, and trustworthy. The kind of site that makes you feel safe hiring this person. Think rounded shapes, soft palette, approachable typography.' },
-  { id: 'B', brief: 'Direction B should feel sharp, precise, and confident. Apple-inspired restraint. Typography does the heavy lifting. Minimal decoration, maximum clarity.' },
+  { id: 'B', brief: 'Direction B should feel sharp, precise, and confident — but still fully designed. Apple-level restraint means maximum intentionality, not minimal effort. Strong typography hierarchy, deliberate whitespace, a considered color palette, and real visual personality. This should look like a designer spent hours on it, not like unstyled HTML.' },
   { id: 'C', brief: 'Direction C should feel bold, modern, and premium. High contrast, dramatic type, unexpected design choices. The kind of site that makes you stop scrolling.' },
 ];
 

@@ -11,16 +11,16 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #0A0A0A;
-      --surface: #141414;
-      --surface2: #1C1C1C;
-      --border: #2A2A2A;
+      --bg: #111111;
+      --surface: #1A1A1A;
+      --surface2: #222222;
+      --border: #333333;
       --blue: #3B9FE7;
       --blue-glow: rgba(59, 159, 231, 0.12);
       --blue-glow-strong: rgba(59, 159, 231, 0.2);
       --text: #F0F0F0;
-      --muted: #888888;
-      --subtle: #333333;
+      --muted: #999999;
+      --subtle: #555555;
     }
 
     html, body {
@@ -3942,9 +3942,14 @@ function getActiveScreens() {
 
 function openPopupFlow() {
   popupScreens = getActiveScreens();
-  popupStep = 0;
-  popupAnswers = {};
-  popupLeadData = { name: '', email: '', consent: false };
+  popupStep = 0; // HIT-96: Always start at step 0 — the info/expectation screen
+  // Only reset answers if this is a fresh session (not prefilled from history)
+  if (!popupAnswers || Object.keys(popupAnswers).filter(k => !k.startsWith('_')).length === 0) {
+    popupAnswers = {};
+  }
+  if (!popupLeadData?.email) {
+    popupLeadData = { name: '', email: '', phone: '', consent: false };
+  }
   popupSessionCreated = false;
   document.getElementById('starters').style.display = 'none';
   document.getElementById('popup-overlay').classList.add('visible');
@@ -3961,13 +3966,8 @@ function closePopupFlow() {
   }
 }
 
-// Close on overlay click (not modal click)
-document.addEventListener('click', function(e) {
-  const overlay = document.getElementById('popup-overlay');
-  if (overlay.classList.contains('visible') && e.target === overlay) {
-    closePopupFlow();
-  }
-});
+// HIT-95: Outside click NO LONGER closes popup — popup is a required flow
+// Removed: overlay click handler that dismissed popup on backdrop click
 
 function renderPopupStep() {
   const screen = popupScreens[popupStep];
@@ -4279,14 +4279,19 @@ async function submitPopupFlow() {
   document.getElementById('popup-overlay').classList.remove('visible');
   clearIdleTimer();
 
-  // Write popup answers to session (they're already being synced during popup,
-  // but ensure the final state is written)
+  // HIT-99: Write popup answers to Supabase and WAIT for it to complete
+  // before sending the chat message. Race condition: if chat fires before
+  // the write commits, Carl's system prompt has empty partial_answers.
   if (sessionId) {
-    fetch('/api/qualify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id: sessionId, partial_answers: popupAnswers }),
-    }).catch(() => {});
+    try {
+      await fetch('/api/qualify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId, partial_answers: popupAnswers }),
+      });
+    } catch {
+      // Continue anyway — answers are in local state
+    }
   }
 
   // HIT-93: Invisible handoff — send a simple trigger message, not a wall of answers.
