@@ -243,12 +243,23 @@ When responding to the orchestrator's first message after handoff, or to feedbac
 Project content for this Quick Build:
 ${JSON.stringify(session?.quickbuild_content || {}, null, 2)}` : '';
 
-  // HIT-44: Carl (CDO) design path framing
-  // HIT-93: Build popup context for Carl's system prompt
+  // HIT-101: Build popup context — ALWAYS available, regardless of need_type
   const popupContext = session?.partial_answers ? Object.entries(session.partial_answers)
     .filter(([k, v]) => v && !k.startsWith('_'))
     .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`)
     .join('\n') : '';
+
+  // HIT-101: Standalone popup context block — injected for ALL roles when answers exist
+  const popupContextBlock = popupContext ? `
+
+THE CLIENT HAS ALREADY COMPLETED A STRUCTURED INTAKE. Here is everything they told us:
+
+${popupContext}
+
+These answers are COMPLETE. DO NOT re-ask any of them. DO NOT ask clarifying versions. DO NOT paraphrase them back as questions. They are facts — use them. Your first response should demonstrate you read these answers by referencing something specific.
+` : '';
+
+  // HIT-44: Carl (CDO) design path framing
 
   const designPathFraming = session?.need_type === 'design' ? `
 
@@ -334,7 +345,7 @@ You are operating through a web interface called the HITL-AI-DLC Agent Router.
 The orchestrator may be new to the methodology — be helpful, clear, and specific.
 
 FORMATTING RULE: Start every response with a **bold one-sentence summary** of what you're about to communicate. This sentence should stand alone as a complete summary — the rest of your response adds detail. Example: "**Your project is a strong fit for a Quick Build — here's why.**"
-${designPathFraming}${userTypeFraming}
+${popupContextBlock}${designPathFraming}${userTypeFraming}
 Project context:
 - Problem: ${session?.problem || 'not yet defined'}
 - Solution: ${session?.solution || 'not yet defined'}

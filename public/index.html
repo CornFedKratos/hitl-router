@@ -1587,7 +1587,7 @@
     .scroll-pill {
       display: none;
       position: fixed;
-      bottom: 80px;
+      bottom: 76px;
       left: 50%;
       transform: translateX(-50%);
       background: var(--surface);
@@ -1684,6 +1684,7 @@
     .message.agent {
       align-self: flex-start;
     }
+    .message > div { min-width: 0; }
     .message-content {
       padding: 12px 16px;
       border-radius: 12px;
@@ -4294,10 +4295,11 @@ async function submitPopupFlow() {
     }
   }
 
-  // HIT-93: Invisible handoff — send a simple trigger message, not a wall of answers.
+  // HIT-103: Invisible handoff — no visible user bubble.
   // Carl has the popup answers in his system prompt via session.partial_answers.
-  // The user never sees a visible handoff bubble.
-  input.value = 'Let\'s move forward.';
+  // Send a hidden trigger that doesn't render as a user message.
+  window._hideNextUserMessage = true;
+  input.value = 'I just completed the intake. My answers are in the system context. Start the conversation.';
   sendMessage();
 }
 
@@ -4578,6 +4580,11 @@ function smoothScrollToBottom() {
     userHasScrolled = false;
     const pill = document.getElementById('scroll-pill');
     if (pill) pill.classList.remove('visible');
+    // HIT-105: Force re-hide after scroll animation completes
+    setTimeout(() => {
+      userHasScrolled = false;
+      if (pill) pill.classList.remove('visible');
+    }, 600);
   }
 }
 
@@ -6944,8 +6951,12 @@ async function sendMessage() {
   input.style.height = 'auto';
   input._lastSentMessage = text; // HIT-90: Store for retry
 
-  // Add user message
-  addMessage('user', text);
+  // HIT-103: Skip visible user bubble if flagged as hidden handoff
+  if (window._hideNextUserMessage) {
+    window._hideNextUserMessage = false;
+  } else {
+    addMessage('user', text);
+  }
 
   try {
     const chatBody = { message: text, session_id: sessionId };
