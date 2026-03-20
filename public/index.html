@@ -3414,6 +3414,13 @@ async function pollBuildStatus(sid) {
   showBuildRetryUI(sid);
 }
 
+// HIT-90: Retry last chat message after error
+function retryChatMessage(lastMsg) {
+  if (!lastMsg) return;
+  input.value = lastMsg;
+  sendMessage();
+}
+
 // HIT-87: Resume from session ID input field
 function resumeFromInput() {
   const id = document.getElementById('session-resume-id')?.value.trim();
@@ -6782,6 +6789,7 @@ async function sendMessage() {
   sendBtn.disabled = true;
   input.value = '';
   input.style.height = 'auto';
+  input._lastSentMessage = text; // HIT-90: Store for retry
 
   // Add user message
   addMessage('user', text);
@@ -6903,7 +6911,20 @@ async function sendMessage() {
       }
     }
   } catch (err) {
-    addMessage('agent', `Error: ${err.message}`, 'CTO');
+    console.error('Chat error:', err.message);
+    // HIT-90: Friendly error with retry — not raw error dump
+    const lastUserMsg = input._lastSentMessage || '';
+    const errorMsg = document.createElement('div');
+    errorMsg.className = 'message agent';
+    errorMsg.innerHTML = `<div class="agent-avatar">${getAgentIcon('CPO')}</div><div>
+      <div class="message-content" style="border-color:rgba(248,113,113,0.3);">
+        <div style="margin-bottom:12px;">Something went wrong on our end. This is usually temporary.</div>
+        <button onclick="retryChatMessage('${escapeHtml(lastUserMsg.replace(/'/g, "\\'"))}')" style="background:var(--blue);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s;">Try again →</button>
+        <div style="margin-top:12px;font-size:11px;color:var(--muted);">If this keeps happening, <a href="mailto:don@s3technology.io" style="color:var(--blue);">contact Don</a></div>
+      </div>
+    </div>`;
+    chatArea.appendChild(errorMsg);
+    scrollToBottom();
   } finally {
     isStreaming = false;
     sendBtn.disabled = false;
