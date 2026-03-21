@@ -2707,14 +2707,27 @@ async function handleRfpUpload(file) {
     setSummaryStatus('Extracted from document');
 
     if (missingCount === 0) {
-      // High confidence — skip to mockups
-      loadingMsg.querySelector('.message-content').innerHTML = renderMarkdown(
-        '**Got everything we need from your document.** Generating your directions now.'
-      );
-
-      // Create session if needed, write answers, trigger mockups
+      // High confidence — route based on tier signal
       await ensureSessionAndWriteAnswers(tierSignal);
-      triggerMockups(sessionId);
+
+      // HIT-107: Route by tier — RFPs are rarely Quick Build
+      if (tierSignal === 'full_engagement') {
+        loadingMsg.querySelector('.message-content').innerHTML = renderMarkdown(
+          '**Your document describes a significant project.** This is best handled as a full engagement with our team. Let\'s connect you with Don.'
+        );
+        showFullEngagementHandoff(sessionId);
+      } else if (tierSignal === 'launchpad') {
+        loadingMsg.querySelector('.message-content').innerHTML = renderMarkdown(
+          '**Your document outlines a scoped project.** This is a great fit for our Launchpad track. Let\'s discuss the approach.'
+        );
+        showFullEngagementHandoff(sessionId); // Same handoff — Don scopes both Tier 2 and 3
+      } else {
+        // Quick Build — proceed to mockups
+        loadingMsg.querySelector('.message-content').innerHTML = renderMarkdown(
+          '**Got everything we need from your document.** Generating your directions now.'
+        );
+        triggerMockups(sessionId);
+      }
 
     } else if (missingCount <= 2) {
       // Medium confidence — show confirmation with missing fields
@@ -2842,7 +2855,7 @@ function showRfpConfirmation(extracted, confidence, missingFields, tierSignal) {
     <div style="margin:16px 0;font-size:13px;line-height:1.8;">${foundHtml}</div>
     ${missingHtml ? `<div style="margin:16px 0;">${missingHtml}</div>` : ''}
     <button class="popup-info-cta" onclick="confirmRfpExtraction('${tierSignal}')">
-      ${missingHtml ? 'Looks good \u2014 generate my directions' : 'Looks good \u2014 generate my directions'}
+      ${tierSignal === 'quick_build' ? 'Looks good \u2014 generate my directions' : 'Looks good \u2014 let\u2019s talk about this project'}
     </button>
     <div style="text-align:center;margin-top:12px;">
       <a onclick="closeRfpConfirmation()" style="font-size:13px;color:var(--muted);text-decoration:none;cursor:pointer;">Let me answer the questions instead</a>
@@ -2871,9 +2884,13 @@ function confirmRfpExtraction(tierSignal) {
 
   updateSummaryPanel();
 
-  // Create session, write answers, trigger mockups
+  // HIT-107: Route by tier after confirmation
   ensureSessionAndWriteAnswers(tierSignal).then(() => {
-    triggerMockups(sessionId);
+    if (tierSignal === 'full_engagement' || tierSignal === 'launchpad') {
+      showFullEngagementHandoff(sessionId);
+    } else {
+      triggerMockups(sessionId);
+    }
   });
 }
 
