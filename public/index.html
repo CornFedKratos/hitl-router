@@ -6,7 +6,7 @@
   <title>Catalyst — S3 Technology</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -21,13 +21,27 @@
       --text: #F0F0F0;
       --muted: #999999;
       --subtle: #555555;
+      --font-display: 'DM Serif Display', Georgia, serif;
+      --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    /* Grain overlay — same craft we demand from CDO output */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+      opacity: 0.02;
+      pointer-events: none;
+      z-index: 0;
     }
 
     html, body {
       height: 100%;
       background: var(--bg);
       color: var(--text);
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: var(--font-body);
       font-size: 15px;
       line-height: 1.6;
       -webkit-font-smoothing: antialiased;
@@ -53,13 +67,13 @@
       backdrop-filter: blur(16px);
     }
     .nav-brand {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 13px;
-      font-weight: 500;
-      letter-spacing: 0.05em;
-      color: var(--muted);
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 400;
+      letter-spacing: -0.01em;
+      color: var(--text);
     }
-    .nav-brand span { color: var(--blue); }
+    .nav-brand span { display: none; } /* Hide "· Catalyst" — nav IS the brand */
     .nav-links {
       display: flex;
       gap: 24px;
@@ -112,24 +126,44 @@
     }
     .nav-hamburger:hover { color: var(--text); }
 
-    /* ── User Type Selection ── */
+    /* ── Landing Hero ── */
     .user-type-gate {
-      max-width: 560px;
+      max-width: 640px;
       width: 100%;
       margin: 0 auto;
-      padding: 40px 24px;
+      padding: 80px 24px 40px;
       text-align: center;
+      position: relative;
+    }
+    .user-type-gate::before {
+      content: '';
+      position: absolute;
+      top: -20%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(59, 159, 231, 0.06) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: -1;
     }
     .user-type-title {
-      font-size: 22px;
-      font-weight: 600;
+      font-family: var(--font-display);
+      font-size: clamp(32px, 5vw, 44px);
+      font-weight: 400;
       color: var(--text);
-      margin-bottom: 8px;
+      margin-bottom: 16px;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
     }
     .user-type-subtitle {
-      font-size: 14px;
+      font-size: 16px;
       color: var(--muted);
-      margin-bottom: 32px;
+      margin-bottom: 48px;
+      line-height: 1.6;
+      max-width: 460px;
+      margin-left: auto;
+      margin-right: auto;
     }
     .user-type-card {
       display: flex;
@@ -137,25 +171,36 @@
       gap: 16px;
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 18px 24px;
+      border-radius: 12px;
+      padding: 20px 24px;
       margin-bottom: 12px;
       cursor: pointer;
       text-decoration: none;
-      transition: all 0.2s;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
       text-align: left;
     }
     .user-type-card:hover {
-      border-color: rgba(59, 159, 231, 0.3);
+      border-color: rgba(59, 159, 231, 0.4);
       background: var(--surface2);
-      transform: translateY(-1px);
+      transform: translateY(-3px);
+      box-shadow: 0 8px 32px rgba(59, 159, 231, 0.08);
     }
     .user-type-icon {
-      font-size: 20px;
-      flex-shrink: 0;
-      width: 28px;
-      text-align: center;
+      width: 40px;
+      height: 40px;
+      min-width: 40px;
+      border-radius: 10px;
+      background: var(--blue-glow);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--blue);
+      transition: background 0.2s;
     }
+    .user-type-card:hover .user-type-icon {
+      background: var(--blue-glow-strong);
+    }
+    .user-type-icon svg { stroke: var(--blue); }
     .user-type-card-body {
       flex: 1;
     }
@@ -168,6 +213,12 @@
     .user-type-card-desc {
       font-size: 12px;
       color: var(--muted);
+    }
+    .trust-line {
+      margin-top: 40px;
+      font-size: 13px;
+      color: var(--subtle);
+      letter-spacing: 0.02em;
     }
 
     /* ── Popup Question Flow ── */
@@ -2168,7 +2219,7 @@
 
   <!-- Nav -->
   <nav class="nav">
-    <div class="nav-brand">S3 TECHNOLOGY <span>&middot;</span> Catalyst</div>
+    <div class="nav-brand">Catalyst</div>
     <div class="nav-links" id="nav-links">
       <a href="#" onclick="event.preventDefault(); scrollToChat();">Start a Project</a>
       <a href="https://www.npmjs.com/package/hitl-aidlc" target="_blank" rel="noopener">Install CLI</a>
@@ -2224,8 +2275,8 @@
   <div class="chat-area" id="chat-area">
     <!-- Need Classification Gate (HIT-44) -->
     <div class="user-type-gate" id="need-gate">
-      <div class="user-type-title" id="need-gate-title">What can we build for you?</div>
-      <div class="user-type-subtitle" id="need-gate-subtitle">Tell us what you need and we'll connect you with the right expert.</div>
+      <div class="user-type-title" id="need-gate-title">Your idea, built by AI.<br>Guided by experts.</div>
+      <div class="user-type-subtitle" id="need-gate-subtitle">Tell us what you're building. Our team of AI agents and human experts will take it from there.</div>
       <div id="need-gate-cards">
         <div class="user-type-card" onclick="selectNeed('design')">
           <div class="user-type-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></div>
@@ -2260,10 +2311,12 @@
       <div style="text-align:center;margin-top:12px;">
         <a onclick="document.getElementById('session-resume-input').style.display='flex'" style="font-size:12px;color:var(--muted);cursor:pointer;text-decoration:none;">Have a session ID? Resume where you left off &rarr;</a>
         <div id="session-resume-input" style="display:none;margin-top:8px;justify-content:center;gap:8px;">
-          <input type="text" id="session-resume-id" placeholder="sess_xxxxxxxx" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12px;width:180px;">
+          <input type="text" id="session-resume-id" placeholder="sess_xxxxxxxx" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:var(--font-mono);font-size:12px;width:180px;">
           <button onclick="resumeFromInput()" style="background:var(--blue);border:none;border-radius:8px;padding:8px 16px;color:#fff;font-size:12px;cursor:pointer;">Resume</button>
         </div>
       </div>
+      <!-- Trust line -->
+      <div class="trust-line">Production-ready sites delivered in under 2 weeks. Built by AI, reviewed by humans.</div>
     </div>
 
     <!-- Entry Path Toggle (hidden until user type selected) -->
@@ -2569,7 +2622,7 @@
   <!-- Footer -->
   <footer class="footer">
     &copy; 2026 <a href="https://s3technology.io" target="_blank" rel="noopener">S3 Technology</a> &middot;
-    Powered by Catalyst
+    Catalyst
     <div class="footer-links">
       <a href="https://s3technology.io" target="_blank" rel="noopener">s3technology.io</a>
       <span class="footer-sep">&middot;</span>
