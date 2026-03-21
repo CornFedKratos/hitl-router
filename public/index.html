@@ -4451,12 +4451,15 @@ async function submitHumanLedForm(e) {
   btn.disabled = true;
   btn.textContent = 'Sending...';
 
+  const correctionsEl = document.getElementById('hl-corrections');
+  const messageEl = document.getElementById('hl-message');
   const formData = {
     session_id: sessionId,
     name: document.getElementById('hl-name').value.trim(),
     email: document.getElementById('hl-email').value.trim(),
-    problem: document.getElementById('hl-problem').value.trim(),
-    message: document.getElementById('hl-message').value.trim(),
+    problem: popupAnswers?.problem || '',
+    message: (messageEl?.value || '').trim(),
+    corrections: (correctionsEl?.value || '').trim(),
   };
 
   try {
@@ -6977,20 +6980,38 @@ function showFullEngagementHandoff(sid) {
   const panel = document.getElementById('human-led-handoff');
   const content = document.getElementById('human-led-handoff-content');
 
+  // HIT-109: Build AI readback from session data
+  const problem = popupAnswers?.problem || '';
+  const solution = popupAnswers?.solution || '';
+  const audience = popupAnswers?.audience || '';
+  const bizName = (popupAnswers?.business_name || '').split(/\s*[-–—]\s*/)[0].trim();
+  const services = popupAnswers?.services || '';
+
+  let readbackText = '';
+  if (problem && audience) {
+    readbackText = `If I'm reading this right — you're looking to solve a real problem: ${problem.toLowerCase().endsWith('.') ? problem : problem + '.'}`;
+    if (audience) readbackText += ` Your audience is ${audience.toLowerCase()}.`;
+    if (solution) readbackText += ` The solution: ${solution.toLowerCase().endsWith('.') ? solution : solution + '.'}`;
+    readbackText += ` This has the scope and ambition of a serious engagement.`;
+  } else if (bizName) {
+    readbackText = `I can see ${bizName} has something substantial to build.${services ? ` You're focused on ${services.toLowerCase()}.` : ''} This is the kind of project that needs a real conversation to scope properly.`;
+  } else {
+    readbackText = `This has the scope and complexity of a real engagement — not something we can template.`;
+  }
+
   content.innerHTML = `
-    <div class="human-led-handoff-title">This is a big one. Let's talk.</div>
-    <div class="human-led-handoff-desc">
-      Your project has the scope and complexity of a full engagement. The best next step is a conversation with our team to map out the right approach — architecture, timeline, team composition, and investment.
+    <div class="human-led-handoff-title" style="font-family:var(--font-display);font-size:24px;font-weight:400;">We understand what you're building.</div>
+    <div class="human-led-handoff-desc" style="margin:20px 0;line-height:1.7;color:var(--muted);font-size:15px;font-style:italic;">
+      "${readbackText}"
     </div>
-    <div class="human-led-handoff-pricing">
-      Full engagements are scoped individually. We'll walk you through options and pricing on the call.
+    <div style="font-size:14px;color:var(--muted);margin-bottom:24px;">
+      Let me grab a little info to make sure we're on the same page before connecting you with Don.
     </div>
     <form class="human-led-form" id="human-led-form" onsubmit="submitHumanLedForm(event)">
       <input type="text" id="hl-name" placeholder="Your name" value="${escapeHtml(popupLeadData?.name || '')}">
       <input type="email" id="hl-email" placeholder="Your email" value="${escapeHtml(popupLeadData?.email || '')}">
-      <input type="text" id="hl-problem" placeholder="What you're trying to build" value="${escapeHtml(popupAnswers?.problem || '')}" readonly>
-      <textarea id="hl-message" placeholder="Anything else you'd like us to know? (optional)"></textarea>
-      <button type="submit" class="human-led-submit" id="hl-submit">Request a Consultation</button>
+      <textarea id="hl-corrections" placeholder="Anything we got wrong or want to add context on? (optional)"></textarea>
+      <button type="submit" class="human-led-submit" id="hl-submit">Connect me with Don &rarr;</button>
     </form>
     <div class="human-led-fallback">
       Prefer email directly? <a href="mailto:don@s3technology.io">don@s3technology.io</a>
